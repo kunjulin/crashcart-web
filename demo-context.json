@@ -528,7 +528,7 @@
       "specialRule": "無"
     }
   ],
-  "openSealLogExists": false,
+  "recentSealNumbers": [],
   "demoEmployees": [
     {
       "empNo": "A12345",

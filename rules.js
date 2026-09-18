@@ -75,18 +75,19 @@
       if (form[f] === A.bad) add('R6', f);
     });
 
-    // R7：號碼與主檔不符。若該車目前有未結案的取用登錄，這條不算異常。
-    if (!form.openSealLogExists) {
-      [['OuterSealNumber', 'OuterSealNumber'],
-       ['Tray1SealNumber', 'Tray1SealNumber'],
-       ['Tray2SealNumber', 'Tray2SealNumber']].forEach(function (p) {
-        var typed = (form[p[0]] || '').trim();
-        var master = (cart[p[1]] || '').trim();
-        if (typed && master && typed !== master) {
-          add('R7', p[0], '填 ' + typed + '，主檔 ' + master);
-        }
-      });
-    }
+    // R7：號碼與主檔不符就算異常。
+    // 但如果這個號碼出現在「最近的封簽鎖取用登錄」裡，代表是有人正式換過鎖，
+    // 主檔還沒跟上而已，不算異常。
+    var recent = (ctx && ctx.recentSealNumbers) || [];
+    [['OuterSealNumber', 'OuterSealNumber'],
+     ['Tray1SealNumber', 'Tray1SealNumber'],
+     ['Tray2SealNumber', 'Tray2SealNumber']].forEach(function (p) {
+      var typed = (form[p[0]] || '').trim();
+      var master = (cart[p[1]] || '').trim();
+      if (!typed || !master || typed === master) return;
+      if (recent.indexOf(typed) >= 0) return;
+      add('R7', p[0], '填 ' + typed + '，主檔 ' + master);
+    });
 
     // ---- 表頭：車尾固定欄位 ----
     // R11：喉頭鏡柄使用次數達上限

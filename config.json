@@ -9,8 +9,8 @@
     "  4. 所有寫入都留版本紀錄與稽核軌跡。",
     "階段 3 建好流程後再把下面兩個網址填進來。"
   ],
-  "getCartContextUrl": "",
-  "submitPeriodicUrl": "",
+  "getCartContextUrl": "https://defaulta5b8759d60334059a53d8dd6c1c87f.dc.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/26/workflows/e87962c4349142a986d38c1bb479bf92/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=psgrXuwb68iQY3vXhIHS4KUJ0Yn6EPLbLq2ZCegK96g",
+  "submitPeriodicUrl": "https://defaulta5b8759d60334059a53d8dd6c1c87f.dc.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/00/workflows/7050d3452a204830a73463402b8cfc2a/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=OishNy11m4j-30fNpxa8L_JDnWr20dYY6VEqGxeJHcw",
   "submitShiftUrl": "",
   "submitSealUrl": ""
 }

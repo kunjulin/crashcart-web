@@ -58,7 +58,7 @@ const ctx = {
   unit: { UnitCode: '8A', UnitName: '小兒加護病房 8A', ShiftMode: '三班制 (D/E/N)' },
   settings,
   items,
-  openSealLogExists: false,
+  recentSealNumbers: [],
   // 只有示範模式才把名冊放在前端。正式版是打 Flow-1 一次查一個人，
   // 避免掃到 QR code 的人就拿到整個單位的護理師名冊。
   demoEmployees: load('Employees')
