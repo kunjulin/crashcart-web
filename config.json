@@ -11,6 +11,6 @@
   ],
   "getCartContextUrl": "https://defaulta5b8759d60334059a53d8dd6c1c87f.dc.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/26/workflows/e87962c4349142a986d38c1bb479bf92/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=psgrXuwb68iQY3vXhIHS4KUJ0Yn6EPLbLq2ZCegK96g",
   "submitPeriodicUrl": "https://defaulta5b8759d60334059a53d8dd6c1c87f.dc.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/00/workflows/7050d3452a204830a73463402b8cfc2a/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=OishNy11m4j-30fNpxa8L_JDnWr20dYY6VEqGxeJHcw",
-  "submitShiftUrl": "",
-  "submitSealUrl": ""
+  "submitShiftUrl": "https://defaulta5b8759d60334059a53d8dd6c1c87f.dc.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/21/workflows/5d442d327a9d457686ff812a656e28ed/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=EF8_l4gF8gxjFJ9oxblCNnWweFYP-wCwjJH7sxBZZvY",
+  "submitSealUrl": "https://defaulta5b8759d60334059a53d8dd6c1c87f.dc.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/28/workflows/675aec8c7898434782a2c0b2793c8fbd/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=fj8dABcs5fjzxPVSBqVs2x1cTiabhpIB8HxYfbONfHw"
 }

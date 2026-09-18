@@ -1,6 +1,6 @@
 {
-  "version": "1.0.0",
-  "updatedOn": "2026-09-18",
+  "version": "1.1.0",
+  "updatedOn": "2026-09-19",
   "note": "異常判定的單一真實來源。前端紅字與 Flow-2 後端重算都讀這一份。改這裡兩邊一起變。",
   "answerValues": {
     "ok": "ˇ",
@@ -178,7 +178,7 @@
         "type": "headerEquals",
         "fields": [
           "BoardOk",
-          "AlcoholTorchOk"
+          "SprayOk"
         ],
         "equals": "X"
       }
@@ -260,7 +260,7 @@
       "message": "單位備用封簽鎖餘量過低",
       "trigger": {
         "type": "headerNumberAtMost",
-        "field": "SealStockRemain",
+        "field": "RemainQty",
         "settingKey": "SealStockLowThreshold"
       }
     },

@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>附件七・封簽鎖取用登錄</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="bar">
+  <h1>附件七・封簽鎖取用登錄</h1>
+  <div class="sub" id="sub">讀取中…</div>
+</header>
+
+<div class="wrap">
+  <div id="msg"></div>
+  <form id="form" hidden>
+
+    <div class="card">
+      <h2>拿鎖的人</h2>
+      <label for="empNo">員工編號
+        <span class="hint">用手機掃員工證上的條碼，或直接打字。</span>
+      </label>
+      <div class="row">
+        <input id="empNo" inputmode="text" autocomplete="off" placeholder="例如 A12345">
+        <button type="button" class="primary" id="btnScan" style="flex:0 0 auto">掃條碼</button>
+      </div>
+      <div class="err" id="empErr"></div>
+      <label for="empName">姓名</label>
+      <input id="empName" readonly>
+    </div>
+
+    <div class="card">
+      <h2>什麼時候</h2>
+      <div class="row">
+        <div><label for="logDate">日期</label><input type="date" id="logDate"></div>
+        <div><label for="logTime">時間</label><input type="time" id="logTime"></div>
+        <div><label for="shift">班別</label><select id="shift"></select></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>為什麼拿</h2>
+      <label for="reason">取用原因</label>
+      <select id="reason">
+        <option value="">請選擇</option>
+        <option value="1 急救">1 急救</option>
+        <option value="2 更換藥盤">2 更換藥盤</option>
+        <option value="3 急救車稽核">3 急救車稽核</option>
+        <option value="4 急救車物料到期">4 急救車物料到期</option>
+        <option value="5 其他">5 其他</option>
+      </select>
+      <div class="err" id="reasonErr"></div>
+      <div id="reasonOtherWrap" hidden>
+        <label for="reasonOther">其他原因說明</label>
+        <input id="reasonOther" autocomplete="off">
+      </div>
+      <div id="cpcrHint"></div>
+    </div>
+
+    <div class="card">
+      <h2>鎖的號碼與數量</h2>
+      <label for="sealNumber">取用的封簽鎖編號</label>
+      <input id="sealNumber" autocomplete="off" placeholder="鎖上印的號碼">
+      <div class="err" id="sealErr"></div>
+
+      <div class="row">
+        <div>
+          <label for="replenishQty">補充量<span class="hint">　有補新的才填</span></label>
+          <input type="number" id="replenishQty" min="0" step="1" value="0">
+        </div>
+        <div>
+          <label for="remainQty">剩餘量</label>
+          <input type="number" id="remainQty" min="0" step="1">
+        </div>
+      </div>
+      <div class="err" id="remainErr"></div>
+      <div class="hint" id="stockHint"></div>
+    </div>
+
+    <div class="card">
+      <h2>這一筆是什麼</h2>
+      <label style="display:flex;align-items:center;gap:10px;font-weight:700">
+        <input type="checkbox" id="isAudit" style="width:auto;min-height:auto;transform:scale(1.4)">
+        這是主管的週稽核紀錄
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;font-weight:700">
+        <input type="checkbox" id="isCorrection" style="width:auto;min-height:auto;transform:scale(1.4)">
+        這是更正之前的某一筆
+      </label>
+      <div id="correctionWrap" hidden>
+        <label for="correctionOfId">被更正的原登錄單號</label>
+        <input id="correctionOfId" autocomplete="off" placeholder="例如 SL-CC-8A-01-20260919...">
+        <label for="correctionReason">更正原因</label>
+        <textarea id="correctionReason" rows="2"></textarea>
+        <div class="err" id="correctionErr"></div>
+      </div>
+      <div class="notice warn" style="margin-top:12px">
+        送出後不能改。填錯了請再送一筆，勾「這是更正之前的某一筆」。舊的那筆會留著。
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>這次判定</h2>
+      <div id="findings"></div>
+    </div>
+  </form>
+</div>
+
+<div class="footbar" id="footbar" hidden>
+  <div class="summary" id="footSummary">填寫中…</div>
+  <button type="button" class="primary" id="btnSubmit">送出</button>
+</div>
+
+<script src="rules.js"></script>
+<script src="api.js"></script>
+<script src="form-common.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var q = new URLSearchParams(location.search);
+  var cartCode = q.get('cart') || '';
+  var token = q.get('t') || '';
+  var demo = q.get('demo') === '1';
+
+  var ctx = null, rulesDoc = null, lastResult = null;
+  var el = CCForm.el;
+
+  function num(v, dflt) {
+    var n = parseInt(v, 10);
+    return isNaN(n) ? dflt : n;
+  }
+
+  function collect() {
+    return {
+      formType: 'seal',
+      CartCode: ctx.cart.CartCode,
+      UnitCode: ctx.cart.UnitCode,
+      LogDate: el('logDate').value,
+      LogTime: el('logTime').value,
+      Shift: el('shift').value,
+      KeeperEmpNo: el('empNo').value.trim().toUpperCase(),
+      KeeperEmpName: el('empName').value,
+      EmpSource: CCForm.empSource(),
+      SealNumber: el('sealNumber').value.trim(),
+      ReplenishQty: num(el('replenishQty').value, 0),
+      RemainQty: num(el('remainQty').value, null),
+      Reason: el('reason').value,
+      ReasonOther: el('reasonOther').value.trim(),
+      IsAudit: el('isAudit').checked,
+      IsCorrection: el('isCorrection').checked,
+      CorrectionOfId: el('correctionOfId').value.trim(),
+      CorrectionReason: el('correctionReason').value.trim(),
+      identityInvalid: CCForm.identityInvalid(),
+      identityReason: CCForm.identityReason()
+    };
+  }
+
+  /** 剩餘量預設值：單位目前餘量 − 1（拿走這一把）＋ 補充量。 */
+  function suggestRemain() {
+    var stock = (ctx.unit && typeof ctx.unit.SealStockRemain === 'number')
+      ? ctx.unit.SealStockRemain : null;
+    if (stock === null) return;
+    var v = stock - 1 + num(el('replenishQty').value, 0);
+    if (v < 0) v = 0;
+    el('remainQty').value = v;
+  }
+
+  function recompute() {
+    var reason = el('reason').value;
+    el('reasonOtherWrap').hidden = (reason !== '5 其他');
+    el('correctionWrap').hidden = !el('isCorrection').checked;
+
+    var hours = (ctx.settings && ctx.settings.CpcrRecheckHours) || '1';
+    el('cpcrHint').innerHTML = (reason === '1 急救')
+      ? '<div class="notice warn">急救後要在 <b>' + hours + ' 小時</b>內完成物品與藥品補充點班（SOP 註 3）。逾時系統會通知主管。</div>'
+      : '';
+
+    var stock = (ctx.unit && typeof ctx.unit.SealStockRemain === 'number') ? ctx.unit.SealStockRemain : null;
+    el('stockHint').textContent = (stock === null)
+      ? ''
+      : '本單位目前登記的備用封簽鎖餘量：' + stock + ' 把。';
+
+    var form = collect();
+    var res = CCRules.evaluateSeal(form, ctx, rulesDoc);
+    lastResult = res;
+
+    CCForm.clearErrors(['empErr', 'reasonErr', 'sealErr', 'remainErr', 'correctionErr']);
+    var byTarget = CCForm.groupByTarget(res.findings);
+    CCForm.putError('empErr', byTarget, ['KeeperEmpNo']);
+    CCForm.putError('remainErr', byTarget, ['RemainQty']);
+
+    CCForm.renderFindings('findings', res);
+    CCForm.renderFoot('footSummary', res);
+  }
+
+  function submit() {
+    var form = collect();
+    if (!form.KeeperEmpNo) { alert('請先填員工編號。'); el('empNo').focus(); return; }
+    if (!form.Reason) { alert('請選取用原因。'); el('reason').focus(); return; }
+    if (form.Reason === '5 其他' && !form.ReasonOther) {
+      alert('選了「其他」就要寫說明。'); el('reasonOther').focus(); return;
+    }
+    if (!form.SealNumber) { alert('請填取用的封簽鎖編號。'); el('sealNumber').focus(); return; }
+    if (form.RemainQty === null) { alert('請填剩餘量。'); el('remainQty').focus(); return; }
+    if (form.IsCorrection && (!form.CorrectionOfId || !form.CorrectionReason)) {
+      alert('更正紀錄要填原單號與更正原因。'); el('correctionOfId').focus(); return;
+    }
+
+    CCForm.submit({
+      form: form, result: lastResult || CCRules.evaluateSeal(form, ctx, rulesDoc),
+      token: token, rulesDoc: rulesDoc, demo: demo,
+      endpoint: 'submitSealUrl', btnId: 'btnSubmit'
+    });
+  }
+
+  CCForm.boot({
+    cartCode: cartCode, token: token, demo: demo,
+    onReady: function (c, rd) {
+      ctx = c; rulesDoc = rd;
+
+      CCForm.fillShiftOptions('shift', ctx);
+      el('logDate').value = CCRules.todayIso();
+      var now = new Date();
+      el('logTime').value = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+      suggestRemain();
+
+      el('form').hidden = false;
+      el('footbar').hidden = false;
+
+      CCForm.wireEmployee('empNo', 'empName', cartCode, token, demo, recompute);
+      CCForm.wireScan('btnScan', 'empNo', recompute);
+      ['logDate', 'logTime', 'shift', 'reason', 'reasonOther', 'sealNumber',
+       'isAudit', 'isCorrection', 'correctionOfId', 'correctionReason'].forEach(function (id) {
+        el(id).addEventListener('change', recompute);
+      });
+      el('replenishQty').addEventListener('input', function () { suggestRemain(); recompute(); });
+      el('remainQty').addEventListener('input', recompute);
+      el('btnSubmit').addEventListener('click', submit);
+
+      recompute();
+    }
+  });
+})();
+</script>
+</body>
+</html>

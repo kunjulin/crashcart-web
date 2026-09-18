@@ -74,8 +74,10 @@
     return getJson(u);
   }
 
-  /** 送出定期點班（附件九）。 */
-  function submitPeriodic(payload, demo) {
+  /**
+   * 送出任何一張表。endpoint 是 config.json 裡的鍵，例如 submitPeriodicUrl。
+   */
+  function submit(endpoint, payload, demo) {
     if (demo) {
       return new Promise(function (res) {
         setTimeout(function () {
@@ -83,18 +85,22 @@
         }, 600);
       });
     }
-    if (!cfg.submitPeriodicUrl) {
-      return Promise.reject(new Error('尚未設定 submitPeriodicUrl（階段 3 才會填）'));
-    }
+    var url = cfg[endpoint];
+    if (!url) return Promise.reject(new Error('尚未設定 ' + endpoint));
     // 為什麼用 text/plain 而不是 application/json：
     //   瀏覽器對 application/json 的跨網域 POST 會先送一個 OPTIONS 預檢請求，
     //   但 Power Automate 的 HTTP 觸發器只認一種方法，答不了 OPTIONS，整個請求就失敗。
     //   text/plain 屬於「簡單請求」，不會預檢。流程那邊用 json(string(triggerBody())) 解回物件。
-    return getJson(cfg.submitPeriodicUrl, {
+    return getJson(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
       body: JSON.stringify(payload)
     });
+  }
+
+  /** 送出定期點班（附件九）。舊呼叫點還在用，內部轉給 submit。 */
+  function submitPeriodic(payload, demo) {
+    return submit('submitPeriodicUrl', payload, demo);
   }
 
   global.CCApi = {
@@ -102,6 +108,7 @@
     getCartContext: getCartContext,
     lookupEmployee: lookupEmployee,
     submitPeriodic: submitPeriodic,
+    submit: submit,
     get config() { return cfg; },
     get rules() { return rulesDoc; }
   };

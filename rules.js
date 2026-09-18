@@ -134,7 +134,85 @@
     // R10 由後端最終認定；前端只在已經確定查不到時先標紅字。
     if (form.identityInvalid) add('R10', 'EmpNo', form.identityReason || '');
 
-    // ---- 彙總 ----
+    return summarise(findings, rulesDoc);
+  }
+
+  /**
+   * 判定一張例行點班表（附件八）。
+   *
+   * 跟附件九最大的差別：勾了「急救車使用中」就不判封簽鎖。
+   * 理由是 SOP 註 1 —— 車子正在用，封簽本來就是開的，不算異常。
+   */
+  function evaluateShift(form, ctx, rulesDoc) {
+    var rules = {};
+    rulesDoc.rules.forEach(function (r) { rules[r.code] = r; });
+    var cart = (ctx && ctx.cart) || {};
+    var recent = (ctx && ctx.recentSealNumbers) || [];
+    var findings = [];
+
+    function add(code, target, extra) {
+      var r = rules[code];
+      if (!r) return;
+      findings.push({
+        code: r.code, name: r.name, severity: r.severity, dimension: r.dimension,
+        message: r.message, requiresApproval: !!r.requiresApproval,
+        target: target || '', detail: extra || ''
+      });
+    }
+
+    if (!form.InUse) {
+      if (form.SealIntact === A.bad) add('R6', 'SealIntact');
+
+      var typed = (form.OuterSealNumber || '').trim();
+      var master = (cart.OuterSealNumber || '').trim();
+      if (typed && master && typed !== master && recent.indexOf(typed) < 0) {
+        add('R7', 'OuterSealNumber', '填 ' + typed + '，主檔 ' + master);
+      }
+    }
+
+    ['BoardOk', 'SprayOk'].forEach(function (f) {
+      if (form[f] === A.bad) add('R8', f);
+    });
+
+    if (form.identityInvalid) add('R10', 'EmpNo', form.identityReason || '');
+
+    return summarise(findings, rulesDoc);
+  }
+
+  /**
+   * 判定一張封簽鎖取用登錄（附件七）。
+   *
+   * 只有兩條規則會動：員編對不對，以及備用鎖剩幾把。
+   */
+  function evaluateSeal(form, ctx, rulesDoc) {
+    var rules = {};
+    rulesDoc.rules.forEach(function (r) { rules[r.code] = r; });
+    var settings = (ctx && ctx.settings) || {};
+    var findings = [];
+
+    function add(code, target, extra) {
+      var r = rules[code];
+      if (!r) return;
+      findings.push({
+        code: r.code, name: r.name, severity: r.severity, dimension: r.dimension,
+        message: r.message, requiresApproval: !!r.requiresApproval,
+        target: target || '', detail: extra || ''
+      });
+    }
+
+    if (form.identityInvalid) add('R10', 'KeeperEmpNo', form.identityReason || '');
+
+    var threshold = num(settings.SealStockLowThreshold, 1);
+    var remain = num(form.RemainQty, null);
+    if (remain !== null && remain <= threshold) {
+      add('R13', 'RemainQty', '剩 ' + remain + ' 把，門檻 ' + threshold);
+    }
+
+    return summarise(findings, rulesDoc);
+  }
+
+  /** 把 findings 收成同一種摘要格式，三張表共用。 */
+  function summarise(findings, rulesDoc) {
     var order = rulesDoc.severityOrder || ['無', '中', '高'];
     var maxSeverity = '無';
     var requiresApproval = false;
@@ -142,7 +220,6 @@
       if (order.indexOf(f.severity) > order.indexOf(maxSeverity)) maxSeverity = f.severity;
       if (f.requiresApproval) requiresApproval = true;
     });
-
     return {
       findings: findings,
       hasAbnormal: findings.length > 0,
@@ -160,6 +237,8 @@
   global.CCRules = {
     ANSWER: A,
     evaluatePeriodic: evaluatePeriodic,
+    evaluateShift: evaluateShift,
+    evaluateSeal: evaluateSeal,
     todayIso: function () { return fmt(today()); }
   };
 })(window);

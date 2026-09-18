@@ -30,13 +30,13 @@
       <strong>附件九・定期點班</strong>
       <span>換藥盤時做。全車 38 項，逐項看數量、功能、品質、效期。</span>
     </a>
-    <a class="big-link" id="lnkShift" href="#" aria-disabled="true">
+    <a class="big-link" id="lnkShift" href="#">
       <strong>附件八・例行點班</strong>
-      <span>每班交班做。目前還沒開放（等 Forms 測試結果）。</span>
+      <span>每班交班做。看封簽鎖、急救板、酒精噴槍。</span>
     </a>
-    <a class="big-link" id="lnkSeal" href="#" aria-disabled="true">
+    <a class="big-link" id="lnkSeal" href="#">
       <strong>附件七・封簽鎖取用登錄</strong>
-      <span>拿備用封簽鎖時登錄。目前還沒開放（等 Forms 測試結果）。</span>
+      <span>拿備用封簽鎖時登錄。會自動更新單位餘量。</span>
     </a>
   </div>
 </div>
@@ -80,6 +80,8 @@
 
       var qs = demo ? '?demo=1' : ('?cart=' + encodeURIComponent(cart) + '&t=' + encodeURIComponent(token));
       document.getElementById('lnkPeriodic').href = 'periodic.html' + qs;
+      document.getElementById('lnkShift').href = 'shift.html' + qs;
+      document.getElementById('lnkSeal').href = 'seal.html' + qs;
     })
     .catch(function (e) {
       fail('打不開這台急救車：' + e.message + '<br>請找單位主管處理。');

@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>附件八・例行點班</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="bar">
+  <h1>附件八・例行點班</h1>
+  <div class="sub" id="sub">讀取中…</div>
+</header>
+
+<div class="wrap">
+  <div id="msg"></div>
+  <form id="form" hidden>
+
+    <div class="card">
+      <h2>點班的人</h2>
+      <label for="empNo">員工編號
+        <span class="hint">用手機掃員工證上的條碼，或直接打字。</span>
+      </label>
+      <div class="row">
+        <input id="empNo" inputmode="text" autocomplete="off" placeholder="例如 A12345">
+        <button type="button" class="primary" id="btnScan" style="flex:0 0 auto">掃條碼</button>
+      </div>
+      <div class="err" id="empErr"></div>
+      <label for="empName">姓名</label>
+      <input id="empName" readonly>
+    </div>
+
+    <div class="card">
+      <h2>基本資料</h2>
+      <div class="row">
+        <div><label for="checkDate">點班日期</label><input type="date" id="checkDate"></div>
+        <div><label for="shift">班別</label><select id="shift"></select></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>急救車狀態</h2>
+      <label style="display:flex;align-items:center;gap:10px;font-weight:700">
+        <input type="checkbox" id="inUse" style="width:auto;min-height:auto;transform:scale(1.4)">
+        這台急救車正在使用中
+      </label>
+      <div class="hint">勾了以後封簽鎖那兩欄會自動填「使用中」並鎖住，不判封簽異常。</div>
+      <div id="inUseHint"></div>
+    </div>
+
+    <div class="card">
+      <h2>逐項點檢</h2>
+
+      <div class="item" style="border-top:0;padding-left:0;padding-right:0">
+        <div class="name">封簽鎖外觀完整</div>
+        <div class="dims"><span class="dim" id="segSealIntact"></span></div>
+      </div>
+
+      <label for="outerSeal">外側封簽鎖號碼</label>
+      <input id="outerSeal" autocomplete="off">
+      <div class="err" id="outerSealErr"></div>
+
+      <div class="item" style="padding-left:0;padding-right:0">
+        <div class="name">急救板</div>
+        <div class="dims"><span class="dim" id="segBoardOk"></span></div>
+      </div>
+
+      <div class="item" style="padding-left:0;padding-right:0">
+        <div class="name">酒精噴槍於效期內</div>
+        <div class="dims"><span class="dim" id="segSprayOk"></span></div>
+      </div>
+
+      <div class="err" id="itemErr"></div>
+
+      <label for="abnormalDesc">異常說明與處理
+        <span class="hint">　有任何一項是 X 就要填。</span>
+      </label>
+      <textarea id="abnormalDesc" rows="3" placeholder="例如：酒精噴槍已過期，已更換新品並通知組長"></textarea>
+    </div>
+
+    <div class="card">
+      <h2>這次判定</h2>
+      <div id="findings"></div>
+    </div>
+  </form>
+</div>
+
+<div class="footbar" id="footbar" hidden>
+  <div class="summary" id="footSummary">填寫中…</div>
+  <button type="button" class="primary" id="btnSubmit">送出</button>
+</div>
+
+<script src="rules.js"></script>
+<script src="api.js"></script>
+<script src="form-common.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var q = new URLSearchParams(location.search);
+  var cartCode = q.get('cart') || '';
+  var token = q.get('t') || '';
+  var demo = q.get('demo') === '1';
+
+  var ctx = null, rulesDoc = null, lastResult = null;
+  var A = CCRules.ANSWER;
+  var el = CCForm.el;
+  var segs = {};
+
+  /* ---------- 蒐集 ---------- */
+  function collect() {
+    return {
+      formType: 'shift',
+      CartCode: ctx.cart.CartCode,
+      UnitCode: ctx.cart.UnitCode,
+      CheckDate: el('checkDate').value,
+      Shift: el('shift').value,
+      EmpNo: el('empNo').value.trim().toUpperCase(),
+      EmpName: el('empName').value,
+      EmpSource: CCForm.empSource(),
+      InUse: el('inUse').checked,
+      SealIntact: el('inUse').checked ? '使用中' : CCForm.segValue(segs.SealIntact),
+      OuterSealNumber: el('outerSeal').value.trim(),
+      BoardOk: CCForm.segValue(segs.BoardOk),
+      SprayOk: CCForm.segValue(segs.SprayOk),
+      AbnormalDesc: el('abnormalDesc').value,
+      identityInvalid: CCForm.identityInvalid(),
+      identityReason: CCForm.identityReason()
+    };
+  }
+
+  /* ---------- 重新判定 ---------- */
+  function recompute() {
+    var inUse = el('inUse').checked;
+    CCForm.setSegDisabled(segs.SealIntact, inUse);
+    el('outerSeal').disabled = inUse;
+    el('inUseHint').innerHTML = inUse
+      ? '<div class="notice warn">使用中。封簽鎖不列入判定，但急救板與酒精噴槍還是要點。</div>'
+      : '';
+
+    var form = collect();
+    var res = CCRules.evaluateShift(form, ctx, rulesDoc);
+    lastResult = res;
+
+    CCForm.clearErrors(['empErr', 'outerSealErr', 'itemErr']);
+    var byTarget = CCForm.groupByTarget(res.findings);
+    CCForm.putError('empErr', byTarget, ['EmpNo']);
+    CCForm.putError('outerSealErr', byTarget, ['OuterSealNumber', 'SealIntact']);
+    CCForm.putError('itemErr', byTarget, ['BoardOk', 'SprayOk']);
+
+    CCForm.renderFindings('findings', res);
+    CCForm.renderFoot('footSummary', res);
+  }
+
+  /* ---------- 送出 ---------- */
+  function submit() {
+    var form = collect();
+    if (!form.EmpNo) { alert('請先填員工編號。'); el('empNo').focus(); return; }
+
+    var res = lastResult || CCRules.evaluateShift(form, ctx, rulesDoc);
+    if (res.hasAbnormal && !form.AbnormalDesc.trim()) {
+      alert('有異常就要填「異常說明與處理」。');
+      el('abnormalDesc').focus();
+      return;
+    }
+    CCForm.submit({
+      form: form, result: res, token: token, rulesDoc: rulesDoc, demo: demo,
+      endpoint: 'submitShiftUrl', btnId: 'btnSubmit'
+    });
+  }
+
+  /* ---------- 啟動 ---------- */
+  CCForm.boot({
+    cartCode: cartCode, token: token, demo: demo,
+    onReady: function (c, rd) {
+      ctx = c; rulesDoc = rd;
+
+      CCForm.fillShiftOptions('shift', ctx);
+      el('checkDate').value = CCRules.todayIso();
+      el('outerSeal').value = ctx.cart.OuterSealNumber || '';
+      el('inUse').checked = !!ctx.cart.InUse;
+
+      segs.SealIntact = CCForm.mountSeg('segSealIntact', [A.ok, A.bad], recompute);
+      segs.BoardOk = CCForm.mountSeg('segBoardOk', [A.ok, A.bad, A.na], recompute);
+      segs.SprayOk = CCForm.mountSeg('segSprayOk', [A.ok, A.bad, A.na], recompute);
+
+      el('form').hidden = false;
+      el('footbar').hidden = false;
+
+      CCForm.wireEmployee('empNo', 'empName', cartCode, token, demo, recompute);
+      CCForm.wireScan('btnScan', 'empNo', recompute);
+      ['checkDate', 'shift', 'outerSeal', 'inUse', 'abnormalDesc'].forEach(function (id) {
+        el(id).addEventListener('change', recompute);
+      });
+      el('outerSeal').addEventListener('input', recompute);
+      el('btnSubmit').addEventListener('click', submit);
+
+      recompute();
+    }
+  });
+})();
+</script>
+</body>
+</html>
