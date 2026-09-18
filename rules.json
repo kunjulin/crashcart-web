@@ -1,0 +1,237 @@
+{
+  "version": "1.0.0",
+  "updatedOn": "2026-09-18",
+  "note": "異常判定的單一真實來源。前端紅字與 Flow-2 後端重算都讀這一份。改這裡兩邊一起變。",
+
+  "answerValues": {
+    "ok": "ˇ",
+    "bad": "X",
+    "na": "-"
+  },
+
+  "severityOrder": ["無", "中", "高"],
+
+  "settingKeys": {
+    "expiringSoonFallbackDays": "ExpiringSoonFallbackDays",
+    "laryngoscopeMaxUse": "LaryngoscopeMaxUse",
+    "sealStockLowThreshold": "SealStockLowThreshold",
+    "cpcrRecheckHours": "CpcrRecheckHours",
+    "keeperAuditDays": "KeeperAuditDays"
+  },
+
+  "triggerTypes": {
+    "lineAnswer": "任一品項的指定面向答 X",
+    "lineExpiryBefore": "任一品項填的效期早於參考日",
+    "headerEquals": "表頭欄位等於某值",
+    "headerDateBefore": "表頭日期早於參考日",
+    "headerNumberAtLeast": "表頭數字大於等於設定值",
+    "sealNumberMismatch": "封簽鎖號碼與主檔不符",
+    "identity": "員編查不到 / 非在職 / 單位不符",
+    "requiredField": "必填欄位沒填",
+    "schedule": "只能由排程流程判定，表單端不判"
+  },
+
+  "rules": [
+    {
+      "code": "R1",
+      "name": "缺件",
+      "appliesTo": ["periodic"],
+      "severity": "高",
+      "requiresApproval": true,
+      "dimension": "數量",
+      "message": "數量不足，需補件",
+      "trigger": { "type": "lineAnswer", "dimension": "數量", "equals": "X" }
+    },
+    {
+      "code": "R2",
+      "name": "功能異常",
+      "appliesTo": ["periodic"],
+      "severity": "高",
+      "requiresApproval": true,
+      "dimension": "功能",
+      "message": "功能測試不通過",
+      "trigger": { "type": "lineAnswer", "dimension": "功能", "equals": "X" }
+    },
+    {
+      "code": "R3",
+      "name": "品質異常",
+      "appliesTo": ["periodic"],
+      "severity": "高",
+      "requiresApproval": true,
+      "dimension": "品質",
+      "message": "外觀或品質有破損",
+      "trigger": { "type": "lineAnswer", "dimension": "品質", "equals": "X" }
+    },
+    {
+      "code": "R4",
+      "name": "過期",
+      "appliesTo": ["periodic"],
+      "severity": "高",
+      "requiresApproval": true,
+      "dimension": "有效期限",
+      "message": "已過期，立即更換",
+      "trigger": {
+        "type": "lineAnswer",
+        "dimension": "有效期限",
+        "equals": "X",
+        "orExpiryBefore": "today"
+      }
+    },
+    {
+      "code": "R5",
+      "name": "即將到期",
+      "appliesTo": ["periodic"],
+      "severity": "中",
+      "requiresApproval": false,
+      "dimension": "有效期限",
+      "message": "會在下次換藥盤日之前到期",
+      "trigger": {
+        "type": "lineExpiryBefore",
+        "ref": "nextTrayChangeOn",
+        "fallbackDaysFromToday": "ExpiringSoonFallbackDays"
+      }
+    },
+    {
+      "code": "R6",
+      "name": "封簽異常",
+      "appliesTo": ["shift", "periodic"],
+      "severity": "高",
+      "requiresApproval": true,
+      "dimension": "封簽鎖",
+      "message": "封簽鎖外觀不完整",
+      "trigger": {
+        "type": "headerEquals",
+        "fields": ["Tray1SealIntact", "Tray2SealIntact", "Tray1DrugOk", "Tray2DrugOk"],
+        "equals": "X"
+      }
+    },
+    {
+      "code": "R7",
+      "name": "封簽號碼不符",
+      "appliesTo": ["shift", "periodic"],
+      "severity": "高",
+      "requiresApproval": true,
+      "dimension": "封簽鎖",
+      "message": "號碼與主檔不同，且查不到取用登錄",
+      "trigger": {
+        "type": "sealNumberMismatch",
+        "pairs": [
+          { "input": "OuterSealNumber", "master": "OuterSealNumber" },
+          { "input": "Tray1SealNumber", "master": "Tray1SealNumber" },
+          { "input": "Tray2SealNumber", "master": "Tray2SealNumber" }
+        ],
+        "suppressedBy": "openSealLogExists"
+      }
+    },
+    {
+      "code": "R8",
+      "name": "配件異常",
+      "appliesTo": ["shift"],
+      "severity": "高",
+      "requiresApproval": true,
+      "dimension": "其他",
+      "message": "急救板或酒精噴槍不正常",
+      "trigger": {
+        "type": "headerEquals",
+        "fields": ["BoardOk", "AlcoholTorchOk"],
+        "equals": "X"
+      }
+    },
+    {
+      "code": "R9",
+      "name": "逾期未盤",
+      "appliesTo": ["schedule"],
+      "severity": "中",
+      "requiresApproval": false,
+      "dimension": "其他",
+      "message": "該班或該期未完成點班",
+      "trigger": { "type": "schedule" }
+    },
+    {
+      "code": "R10",
+      "name": "身分異常",
+      "appliesTo": ["shift", "periodic", "seal"],
+      "severity": "高",
+      "requiresApproval": true,
+      "dimension": "其他",
+      "message": "員工編號查無此人、非在職，或不屬於本單位",
+      "trigger": { "type": "identity" }
+    },
+    {
+      "code": "R11",
+      "name": "需更換電池",
+      "appliesTo": ["periodic"],
+      "severity": "中",
+      "requiresApproval": false,
+      "dimension": "其他",
+      "message": "喉頭鏡柄使用次數已達上限，請換電池",
+      "trigger": {
+        "type": "headerNumberAtLeast",
+        "field": "LaryngoUseCount",
+        "settingKey": "LaryngoscopeMaxUse"
+      }
+    },
+    {
+      "code": "R12",
+      "name": "送消逾期",
+      "appliesTo": ["periodic"],
+      "severity": "高",
+      "requiresApproval": true,
+      "dimension": "有效期限",
+      "message": "送消 Ambu 或 Ambu Mask 已過到期日",
+      "trigger": {
+        "type": "headerDateBefore",
+        "fields": ["AmbuExpiryOn", "AmbuMaskExpiryOn"],
+        "ref": "today"
+      }
+    },
+    {
+      "code": "R13",
+      "name": "備用鎖不足",
+      "appliesTo": ["seal"],
+      "severity": "中",
+      "requiresApproval": false,
+      "dimension": "其他",
+      "message": "單位備用封簽鎖餘量過低",
+      "trigger": {
+        "type": "headerNumberAtMost",
+        "field": "SealStockRemain",
+        "settingKey": "SealStockLowThreshold"
+      }
+    },
+    {
+      "code": "R14",
+      "name": "資料不全",
+      "appliesTo": ["periodic"],
+      "severity": "中",
+      "requiresApproval": false,
+      "dimension": "其他",
+      "message": "選了「僅第一層」就要填原因代號",
+      "trigger": {
+        "type": "requiredField",
+        "field": "ReasonCode",
+        "when": { "field": "Scope", "equals": "僅第一層" }
+      }
+    },
+    {
+      "code": "R15",
+      "name": "CPCR 補充逾時",
+      "appliesTo": ["schedule"],
+      "severity": "高",
+      "requiresApproval": true,
+      "dimension": "其他",
+      "message": "急救後未在時限內完成補充點班",
+      "trigger": { "type": "schedule" }
+    },
+    {
+      "code": "R16",
+      "name": "週稽核未執行",
+      "appliesTo": ["schedule"],
+      "severity": "中",
+      "requiresApproval": false,
+      "dimension": "其他",
+      "message": "指派專人保管的單位超過時限沒有主管稽核",
+      "trigger": { "type": "schedule" }
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "_note": [
+    "Flow-1 / Flow-2 的 HTTP 觸發器網址。",
+    "網址裡的 sig= 是簽章，但這個頁面是公開的，任何開頁面的人都能從瀏覽器看到它。",
+    "所以我們不把它當秘密看待，真正的防線是：",
+    "  1. Flow-1 一定要帶對的 QR token 才回資料。",
+    "  2. Flow-2 一樣驗 token，並記錄來源 IP、User-Agent、token 前 8 碼。",
+    "  3. 同一台車在 SubmitThrottleSeconds 秒內不接受重複送出。",
+    "  4. 所有寫入都留版本紀錄與稽核軌跡。",
+    "階段 3 建好流程後再把下面兩個網址填進來。"
+  ],
+  "getCartContextUrl": "",
+  "submitPeriodicUrl": "",
+  "submitShiftUrl": "",
+  "submitSealUrl": ""
+}

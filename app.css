@@ -1,0 +1,137 @@
+/* 護理師大多用手機填，所以先把手機排版做對，桌機只是變寬一點。 */
+:root {
+  --bg: #f4f6f8;
+  --card: #ffffff;
+  --line: #d8dde3;
+  --text: #16202b;
+  --muted: #5b6b7b;
+  --ok: #0f7b3d;
+  --warn: #9a6400;
+  --bad: #b3261e;
+  --brand: #0b5cab;
+  --tap: 44px; /* 手指最小可點高度 */
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+  font-size: 17px;
+  line-height: 1.6;
+}
+
+.wrap { max-width: 760px; margin: 0 auto; padding: 12px 12px 96px; }
+
+header.bar {
+  position: sticky; top: 0; z-index: 20;
+  background: var(--brand); color: #fff;
+  padding: 12px 14px;
+}
+header.bar h1 { margin: 0; font-size: 1.15rem; }
+header.bar .sub { font-size: .85rem; opacity: .9; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px;
+  margin: 12px 0;
+}
+.card > h2 {
+  margin: 0 0 10px;
+  font-size: 1.02rem;
+  border-left: 4px solid var(--brand);
+  padding-left: 8px;
+}
+
+label { display: block; font-weight: 600; margin: 12px 0 4px; }
+.hint { color: var(--muted); font-size: .85rem; font-weight: 400; }
+
+input, select, textarea {
+  width: 100%;
+  min-height: var(--tap);
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: inherit;
+  background: #fff;
+  color: inherit;
+}
+input[readonly] { background: #eef1f4; color: var(--muted); }
+
+/* 紅字：擋不住送出，只是提醒。 */
+.err { color: var(--bad); font-size: .88rem; margin-top: 4px; font-weight: 600; }
+.err:empty { display: none; }
+.field-bad input, .field-bad select { border-color: var(--bad); }
+
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.row > * { flex: 1 1 140px; }
+
+/* ˇ / X / - 三選一按鈕 */
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button {
+  min-width: 46px; min-height: var(--tap);
+  border: 0; background: #fff; font: inherit; cursor: pointer;
+  border-right: 1px solid var(--line);
+}
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"][data-v="ˇ"] { background: var(--ok); color: #fff; }
+.seg button[aria-pressed="true"][data-v="X"] { background: var(--bad); color: #fff; }
+.seg button[aria-pressed="true"][data-v="-"] { background: #8a97a4; color: #fff; }
+.seg button[disabled] { background: #f0f2f4; color: #b6bfc8; cursor: not-allowed; }
+
+/* 品項清單 */
+details.section { border: 1px solid var(--line); border-radius: 10px; background: #fff; margin: 10px 0; }
+details.section > summary {
+  padding: 12px 14px; font-weight: 700; cursor: pointer; list-style: none;
+  display: flex; justify-content: space-between; align-items: center;
+}
+details.section > summary::-webkit-details-marker { display: none; }
+details.section > summary .badge {
+  font-weight: 600; font-size: .8rem; color: var(--muted);
+}
+details.section[data-has-bad="1"] > summary { color: var(--bad); }
+
+.item { border-top: 1px solid var(--line); padding: 12px 14px; }
+.item .name { font-weight: 700; }
+.item .spec { color: var(--muted); font-size: .85rem; }
+.item .dims { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 8px; }
+.item .dim { display: flex; align-items: center; gap: 6px; }
+.item .dim > span { font-size: .85rem; color: var(--muted); min-width: 4em; }
+.item .extra { margin-top: 8px; display: none; }
+.item[data-need-extra="1"] .extra { display: block; }
+
+/* 底部固定送出列 */
+.footbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+  background: #fff; border-top: 1px solid var(--line);
+  padding: 10px 12px; display: flex; gap: 10px; align-items: center;
+}
+.footbar .summary { flex: 1; font-size: .9rem; }
+button.primary {
+  min-height: var(--tap); padding: 0 20px;
+  background: var(--brand); color: #fff; border: 0; border-radius: 8px;
+  font: inherit; font-weight: 700; cursor: pointer;
+}
+button.primary[disabled] { background: #9aa8b5; cursor: not-allowed; }
+
+.pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: .8rem; font-weight: 700; }
+.pill.ok { background: #e3f3e9; color: var(--ok); }
+.pill.warn { background: #fbf0d9; color: var(--warn); }
+.pill.bad { background: #fbe3e1; color: var(--bad); }
+
+.notice { padding: 10px 12px; border-radius: 8px; margin: 10px 0; font-size: .92rem; }
+.notice.ok { background: #e3f3e9; color: var(--ok); }
+.notice.warn { background: #fbf0d9; color: var(--warn); }
+.notice.bad { background: #fbe3e1; color: var(--bad); }
+
+.big-link {
+  display: block; background: #fff; border: 1px solid var(--line); border-radius: 10px;
+  padding: 16px; margin: 10px 0; text-decoration: none; color: inherit;
+}
+.big-link strong { display: block; font-size: 1.05rem; }
+.big-link span { color: var(--muted); font-size: .88rem; }
+.big-link[aria-disabled="true"] { opacity: .5; pointer-events: none; }

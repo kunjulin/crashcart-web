@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>急救車盤點</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="bar">
+  <h1>急救車盤點</h1>
+  <div class="sub" id="sub">讀取中…</div>
+</header>
+
+<div class="wrap">
+  <div id="msg"></div>
+
+  <div class="card" id="cartCard" hidden>
+    <h2>這一台急救車</h2>
+    <div class="row">
+      <div><label>編號<span class="hint"></span></label><input id="cartCode" readonly></div>
+      <div><label>單位</label><input id="unitName" readonly></div>
+    </div>
+    <label>放置位置</label>
+    <input id="location" readonly>
+  </div>
+
+  <div id="menu" hidden>
+    <a class="big-link" id="lnkPeriodic" href="#">
+      <strong>附件九・定期點班</strong>
+      <span>換藥盤時做。全車 38 項，逐項看數量、功能、品質、效期。</span>
+    </a>
+    <a class="big-link" id="lnkShift" href="#" aria-disabled="true">
+      <strong>附件八・例行點班</strong>
+      <span>每班交班做。目前還沒開放（等 Forms 測試結果）。</span>
+    </a>
+    <a class="big-link" id="lnkSeal" href="#" aria-disabled="true">
+      <strong>附件七・封簽鎖取用登錄</strong>
+      <span>拿備用封簽鎖時登錄。目前還沒開放（等 Forms 測試結果）。</span>
+    </a>
+  </div>
+</div>
+
+<script src="api.js"></script>
+<script>
+(function () {
+  'use strict';
+  var q = new URLSearchParams(location.search);
+  var cart = q.get('cart') || '';
+  var token = q.get('t') || '';
+  var demo = q.get('demo') === '1';
+
+  var msg = document.getElementById('msg');
+  function fail(text) {
+    document.getElementById('sub').textContent = '無法開啟';
+    msg.innerHTML = '<div class="notice bad">' + text + '</div>';
+  }
+
+  if (!demo && (!cart || !token)) {
+    fail('網址不完整。請重新掃描急救車上的 QR code。');
+    return;
+  }
+
+  CCApi.boot()
+    .then(function () { return CCApi.getCartContext(cart, token, demo); })
+    .then(function (ctx) {
+      if (!ctx || ctx.ok === false) throw new Error(ctx && ctx.error || 'QR code 無效');
+
+      document.getElementById('sub').textContent =
+        ctx.cart.CartCode + '｜' + (ctx.unit ? ctx.unit.UnitName : ctx.cart.UnitCode);
+      document.getElementById('cartCode').value = ctx.cart.CartCode;
+      document.getElementById('unitName').value = ctx.unit ? ctx.unit.UnitName : ctx.cart.UnitCode;
+      document.getElementById('location').value = ctx.cart.Location || '';
+      document.getElementById('cartCard').hidden = false;
+      document.getElementById('menu').hidden = false;
+
+      if (demo) {
+        msg.innerHTML = '<div class="notice warn">示範模式：資料是假的，送出不會存進 SharePoint。</div>';
+      }
+
+      var qs = demo ? '?demo=1' : ('?cart=' + encodeURIComponent(cart) + '&t=' + encodeURIComponent(token));
+      document.getElementById('lnkPeriodic').href = 'periodic.html' + qs;
+    })
+    .catch(function (e) {
+      fail('打不開這台急救車：' + e.message + '<br>請找單位主管處理。');
+    });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>附件九・定期點班</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="bar">
+  <h1>附件九・定期點班</h1>
+  <div class="sub" id="sub">讀取中…</div>
+</header>
+
+<div class="wrap">
+  <div id="msg"></div>
+  <form id="form" hidden>
+
+    <div class="card">
+      <h2>點班的人</h2>
+      <label for="empNo">員工編號
+        <span class="hint">用手機掃員工證上的條碼，或直接打字。</span>
+      </label>
+      <div class="row">
+        <input id="empNo" inputmode="text" autocomplete="off" placeholder="例如 A12345">
+        <button type="button" class="primary" id="btnScan" style="flex:0 0 auto">掃條碼</button>
+      </div>
+      <div class="err" id="empErr"></div>
+      <label for="empName">姓名</label>
+      <input id="empName" readonly>
+    </div>
+
+    <div class="card">
+      <h2>基本資料</h2>
+      <div class="row">
+        <div><label for="checkDate">點班日期</label><input type="date" id="checkDate"></div>
+        <div><label for="shift">班別</label>
+          <select id="shift">
+            <option value="D 白班">D 白班</option>
+            <option value="E 小夜">E 小夜</option>
+            <option value="N 大夜">N 大夜</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>點班範圍</h2>
+      <label for="scope">這次要點到哪裡</label>
+      <select id="scope">
+        <option value="全車點班">全車點班（展開全部 38 項）</option>
+        <option value="僅第一層">僅第一層（只看兩盤封簽鎖）</option>
+      </select>
+      <div id="reasonWrap" hidden>
+        <label for="reasonCode">不需全車點班的原因</label>
+        <select id="reasonCode">
+          <option value="">請選擇</option>
+          <option value="A 查核作業">A 查核作業</option>
+          <option value="B 僅取用急救藥盤藥物">B 僅取用急救藥盤藥物</option>
+          <option value="C 開啟封簽鎖後因故未使用">C 開啟封簽鎖後因故未使用</option>
+        </select>
+        <div class="err" id="reasonErr"></div>
+      </div>
+      <div id="scopeHint"></div>
+    </div>
+
+    <div class="card">
+      <h2>封簽鎖</h2>
+      <label for="outerSeal">外側封簽鎖號碼</label>
+      <input id="outerSeal" autocomplete="off">
+      <div class="err" id="outerSealErr"></div>
+      <div id="traySlots"></div>
+    </div>
+
+    <div id="itemsWrap">
+      <div class="card">
+        <h2>品項點檢</h2>
+        <div class="hint">ˇ 正常、X 異常。有 X 的品項請補說明。</div>
+      </div>
+      <div id="sections"></div>
+    </div>
+
+    <div class="card">
+      <h2>車尾固定欄位</h2>
+      <div class="row">
+        <div><label for="ambu">送消 Ambu 到期日</label><input type="date" id="ambu"></div>
+        <div><label for="ambuMask">送消 Ambu Mask 到期日</label><input type="date" id="ambuMask"></div>
+      </div>
+      <div class="err" id="ambuErr"></div>
+      <div class="row">
+        <div><label for="laryngoDate">喉頭鏡柄電池更換日</label><input type="date" id="laryngoDate"></div>
+        <div><label for="laryngoCount">喉頭鏡柄累計使用次數</label><input type="number" id="laryngoCount" min="0" step="1"></div>
+      </div>
+      <div class="err" id="laryngoErr"></div>
+    </div>
+
+    <div class="card">
+      <h2>這次判定</h2>
+      <div id="findings"></div>
+    </div>
+  </form>
+</div>
+
+<div class="footbar" id="footbar" hidden>
+  <div class="summary" id="footSummary">填寫中…</div>
+  <button type="button" class="primary" id="btnSubmit">送出</button>
+</div>
+
+<script src="rules.js"></script>
+<script src="api.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var q = new URLSearchParams(location.search);
+  var cartCode = q.get('cart') || '';
+  var token = q.get('t') || '';
+  var demo = q.get('demo') === '1';
+
+  var ctx = null, rulesDoc = null;
+  var A = CCRules.ANSWER;
+  var SECTION_ORDER = ['背面', '桌面', '側面', '第二層', '第三層', '第四層', '第五層'];
+  var DIMS = [
+    { key: '數量', flag: 'checkQty' },
+    { key: '功能', flag: 'checkFunction' },
+    { key: '品質', flag: 'checkQuality' },
+    { key: '有效期限', flag: 'checkExpiry' }
+  ];
+
+  var el = function (id) { return document.getElementById(id); };
+  var msg = el('msg');
+
+  function fail(text) {
+    el('sub').textContent = '無法開啟';
+    msg.innerHTML = '<div class="notice bad">' + text + '</div>';
+  }
+
+  /* ---------- ˇ / X 三選一按鈕 ---------- */
+  function makeSeg(name, allowNa, onChange) {
+    var seg = document.createElement('span');
+    seg.className = 'seg';
+    seg.dataset.name = name;
+    seg.dataset.value = '';
+    var vals = [A.ok, A.bad];
+    if (allowNa) vals.push(A.na);
+    vals.forEach(function (v) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.dataset.v = v;
+      b.textContent = v;
+      b.setAttribute('aria-pressed', 'false');
+      b.addEventListener('click', function () {
+        seg.dataset.value = (seg.dataset.value === v) ? '' : v;
+        Array.prototype.forEach.call(seg.children, function (c) {
+          c.setAttribute('aria-pressed', String(c.dataset.v === seg.dataset.value));
+        });
+        if (onChange) onChange();
+      });
+      seg.appendChild(b);
+    });
+    return seg;
+  }
+  function segValue(seg) { return seg ? seg.dataset.value : ''; }
+
+  /* ---------- 兩盤封簽鎖 ---------- */
+  var traySegs = {};
+  function buildTraySlots() {
+    var host = el('traySlots');
+    [1, 2].forEach(function (n) {
+      var box = document.createElement('div');
+      var zh = (n === 1) ? '一' : '二';
+      box.innerHTML =
+        '<label>第' + zh + '盤封簽鎖號碼</label>' +
+        '<input id="tray' + n + 'Seal" autocomplete="off">' +
+        '<div class="err" id="tray' + n + 'SealErr"></div>';
+
+      [['SealIntact', '封簽鎖外觀完整'], ['DrugOk', '藥物無破損']].forEach(function (pair) {
+        var wrap = document.createElement('div');
+        wrap.className = 'dim';
+        wrap.style.padding = '8px 0';
+        var lbl = document.createElement('span');
+        lbl.style.minWidth = '9em';
+        lbl.style.fontWeight = '600';
+        lbl.textContent = pair[1];
+        var seg = makeSeg('Tray' + n + pair[0], false, recompute);
+        traySegs['Tray' + n + pair[0]] = seg;
+        wrap.appendChild(lbl);
+        wrap.appendChild(seg);
+        box.appendChild(wrap);
+      });
+      host.appendChild(box);
+    });
+    [1, 2].forEach(function (n) {
+      el('tray' + n + 'Seal').addEventListener('input', recompute);
+    });
+  }
+
+  /* ---------- 38 個品項 ---------- */
+  var lineNodes = [];
+  function buildSections() {
+    var host = el('sections');
+    var bySection = {};
+    ctx.items.forEach(function (it) {
+      if (!bySection[it.section]) bySection[it.section] = [];
+      bySection[it.section].push(it);
+    });
+
+    SECTION_ORDER.forEach(function (sec) {
+      var list = bySection[sec];
+      if (!list) return;
+
+      var d = document.createElement('details');
+      d.className = 'section';
+      d.open = (sec === '背面');
+      var s = document.createElement('summary');
+      s.innerHTML = '<span>' + sec + '</span><span class="badge">' + list.length + ' 項</span>';
+      d.appendChild(s);
+
+      list.forEach(function (it) {
+        var node = document.createElement('div');
+        node.className = 'item';
+
+        var sub = [];
+        if (it.spec) sub.push(it.spec);
+        if (it.qtyText) sub.push('標準量 ' + it.qtyText);
+        var head = document.createElement('div');
+        head.innerHTML = '<div class="name">' + it.name + '</div>' +
+          '<div class="spec">' + sub.join('　') + '</div>';
+        node.appendChild(head);
+
+        var dims = document.createElement('div');
+        dims.className = 'dims';
+        var segs = {};
+        DIMS.forEach(function (dm) {
+          if (!it[dm.flag]) return;
+          var w = document.createElement('span');
+          w.className = 'dim';
+          var t = document.createElement('span');
+          t.textContent = dm.key;
+          var seg = makeSeg(it.name + '|' + dm.key, false, recompute);
+          segs[dm.key] = seg;
+          w.appendChild(t);
+          w.appendChild(seg);
+          dims.appendChild(w);
+        });
+        node.appendChild(dims);
+
+        if (it.checkExpiry) {
+          var expWrap = document.createElement('div');
+          expWrap.innerHTML = '<label>效期<span class="hint">　不填就不判到期</span></label>' +
+            '<input type="date" class="expiry">';
+          node.appendChild(expWrap);
+          expWrap.querySelector('.expiry').addEventListener('change', recompute);
+        }
+
+        var extra = document.createElement('div');
+        extra.className = 'extra';
+        var extraHtml = '';
+        if (it.checkQty) {
+          extraHtml += '<label>實際數量（標準 ' + it.qtyText + '）</label>' +
+            '<input type="number" min="0" step="1" class="actualQty">';
+        }
+        extraHtml += '<label>說明</label><input class="note" placeholder="怎麼處理的">';
+        extra.innerHTML = extraHtml;
+        node.appendChild(extra);
+
+        d.appendChild(node);
+        lineNodes.push({ item: it, node: node, segs: segs });
+      });
+
+      host.appendChild(d);
+    });
+  }
+
+  /* ---------- 蒐集目前填的內容 ---------- */
+  function collect() {
+    var lines = lineNodes.map(function (ln) {
+      var o = {
+        name: ln.item.name, section: ln.item.section, spec: ln.item.spec,
+        qtyText: ln.item.qtyText, standardQty: ln.item.standardQty
+      };
+      DIMS.forEach(function (dm) { o[dm.key] = segValue(ln.segs[dm.key]); });
+      var exp = ln.node.querySelector('.expiry');
+      var aq = ln.node.querySelector('.actualQty');
+      var nt = ln.node.querySelector('.note');
+      o.expiryOn = exp ? exp.value : '';
+      o.actualQty = (aq && aq.value !== '') ? parseInt(aq.value, 10) : null;
+      o.note = nt ? nt.value : '';
+      return o;
+    });
+
+    return {
+      CartCode: ctx.cart.CartCode,
+      UnitCode: ctx.cart.UnitCode,
+      CheckDate: el('checkDate').value,
+      Shift: el('shift').value,
+      EmpNo: el('empNo').value.trim().toUpperCase(),
+      EmpName: el('empName').value,
+      EmpSource: empSource,
+      Scope: el('scope').value,
+      ReasonCode: el('reasonCode').value,
+      OuterSealNumber: el('outerSeal').value.trim(),
+      Tray1SealNumber: el('tray1Seal').value.trim(),
+      Tray2SealNumber: el('tray2Seal').value.trim(),
+      Tray1SealIntact: segValue(traySegs.Tray1SealIntact),
+      Tray2SealIntact: segValue(traySegs.Tray2SealIntact),
+      Tray1DrugOk: segValue(traySegs.Tray1DrugOk),
+      Tray2DrugOk: segValue(traySegs.Tray2DrugOk),
+      AmbuExpiryOn: el('ambu').value,
+      AmbuMaskExpiryOn: el('ambuMask').value,
+      LaryngoBatteryOn: el('laryngoDate').value,
+      LaryngoUseCount: parseInt(el('laryngoCount').value, 10) || 0,
+      openSealLogExists: !!ctx.openSealLogExists,
+      identityInvalid: identityInvalid,
+      identityReason: identityReason,
+      lines: lines
+    };
+  }
+
+  /* ---------- 重新判定並畫紅字 ---------- */
+  var lastResult = null;
+  function recompute() {
+    var onlyFirst = el('scope').value === '僅第一層';
+    el('reasonWrap').hidden = !onlyFirst;
+    el('itemsWrap').hidden = onlyFirst;
+    el('scopeHint').innerHTML = onlyFirst
+      ? '<div class="notice warn">只點第一層。第二～五層不展開，也不會產生品項明細。</div>'
+      : '';
+
+    var form = collect();
+    var res = CCRules.evaluatePeriodic(form, ctx, rulesDoc);
+    lastResult = res;
+
+    ['empErr', 'reasonErr', 'outerSealErr', 'tray1SealErr', 'tray2SealErr', 'ambuErr', 'laryngoErr']
+      .forEach(function (id) { var n = el(id); if (n) n.textContent = ''; });
+
+    var byTarget = {};
+    res.findings.forEach(function (f) {
+      if (!byTarget[f.target]) byTarget[f.target] = [];
+      byTarget[f.target].push(f);
+    });
+
+    function put(id, targets) {
+      var hits = [];
+      targets.forEach(function (t) {
+        (byTarget[t] || []).forEach(function (f) { hits.push(f); });
+      });
+      if (hits.length && el(id)) {
+        el(id).textContent = hits.map(function (f) {
+          return f.code + ' ' + f.name + '：' + f.message + (f.detail ? '（' + f.detail + '）' : '');
+        }).join('；');
+      }
+    }
+    put('empErr', ['EmpNo']);
+    put('reasonErr', ['ReasonCode']);
+    put('outerSealErr', ['OuterSealNumber']);
+    put('tray1SealErr', ['Tray1SealNumber', 'Tray1SealIntact', 'Tray1DrugOk']);
+    put('tray2SealErr', ['Tray2SealNumber', 'Tray2SealIntact', 'Tray2DrugOk']);
+    put('ambuErr', ['AmbuExpiryOn', 'AmbuMaskExpiryOn']);
+    put('laryngoErr', ['LaryngoUseCount']);
+
+    var badSections = {};
+    lineNodes.forEach(function (ln) {
+      var bad = DIMS.some(function (dm) { return segValue(ln.segs[dm.key]) === A.bad; });
+      ln.node.dataset.needExtra = bad ? '1' : '0';
+      if (bad) badSections[ln.item.section] = true;
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('details.section'), function (d) {
+      var sec = d.querySelector('summary span').textContent;
+      d.dataset.hasBad = badSections[sec] ? '1' : '0';
+    });
+
+    renderFindings(res);
+    renderFoot(res);
+  }
+
+  function renderFindings(res) {
+    var host = el('findings');
+    if (!res.findings.length) {
+      host.innerHTML = '<div class="notice ok">目前沒有發現異常。</div>';
+      return;
+    }
+    host.innerHTML = res.findings.map(function (f) {
+      var cls = (f.severity === '高') ? 'bad' : 'warn';
+      return '<div class="notice ' + cls + '"><span class="pill ' + cls + '">' + f.severity + '</span> ' +
+        f.code + ' ' + f.name + '　' + (f.target ? '<b>' + f.target + '</b>　' : '') +
+        f.message + (f.detail ? '（' + f.detail + '）' : '') + '</div>';
+    }).join('');
+  }
+
+  function renderFoot(res) {
+    var s = el('footSummary');
+    if (!res.hasAbnormal) {
+      s.innerHTML = '<span class="pill ok">無異常</span> 送出後等主管確認。';
+    } else if (res.requiresApproval) {
+      s.innerHTML = '<span class="pill bad">高度異常 ' + res.findings.length + ' 項</span> 送出後會立刻通知主管。';
+    } else {
+      s.innerHTML = '<span class="pill warn">中度異常 ' + res.findings.length + ' 項</span> 送出後等主管確認。';
+    }
+  }
+
+  /* ---------- 員工編號 ---------- */
+  var empSource = '手動輸入';
+  var identityInvalid = false;
+  var identityReason = '';
+  var empTimer = null;
+
+  function onEmpInput() {
+    clearTimeout(empTimer);
+    var v = el('empNo').value.trim().toUpperCase();
+    el('empName').value = '';
+    identityInvalid = false;
+    identityReason = '';
+    if (!v) { recompute(); return; }
+    empTimer = setTimeout(function () {
+      CCApi.lookupEmployee(cartCode, token, v, demo).then(function (r) {
+        if (r && r.valid) {
+          el('empName').value = r.empName || '';
+        } else {
+          identityInvalid = true;
+          identityReason = (r && r.reason) || '查無此員工編號';
+          el('empName').value = (r && r.empName) || '';
+        }
+        recompute();
+      }).catch(function () {
+        // 查不到就先不擋，後端 Flow-2 會再驗一次。
+        recompute();
+      });
+    }, 400);
+  }
+
+  /* ---------- 掃員工證條碼 ---------- */
+  function setupScan() {
+    var btn = el('btnScan');
+    if (!('BarcodeDetector' in window)) {
+      btn.textContent = '不支援';
+      btn.disabled = true;
+      btn.title = '這台裝置的瀏覽器不支援掃碼，請直接打字。';
+      return;
+    }
+    btn.addEventListener('click', function () {
+      var video = document.createElement('video');
+      video.setAttribute('playsinline', '');
+      video.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:100;background:#000';
+      var close = document.createElement('button');
+      close.type = 'button';
+      close.textContent = '取消';
+      close.className = 'primary';
+      close.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:101';
+      document.body.appendChild(video);
+      document.body.appendChild(close);
+
+      var stream = null, stop = false;
+      function cleanup() {
+        stop = true;
+        if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
+        video.remove();
+        close.remove();
+      }
+      close.addEventListener('click', cleanup);
+
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        .then(function (s) {
+          stream = s;
+          video.srcObject = s;
+          return video.play();
+        })
+        .then(function () {
+          var det = new window.BarcodeDetector();
+          (function loop() {
+            if (stop) return;
+            det.detect(video).then(function (codes) {
+              if (codes && codes.length) {
+                el('empNo').value = String(codes[0].rawValue).trim().toUpperCase();
+                empSource = '掃描';
+                cleanup();
+                onEmpInput();
+                return;
+              }
+              requestAnimationFrame(loop);
+            }).catch(function () { requestAnimationFrame(loop); });
+          })();
+        })
+        .catch(function () {
+          cleanup();
+          alert('打不開相機，請直接打字輸入員工編號。');
+        });
+    });
+  }
+
+  /* ---------- 送出 ---------- */
+  var sending = false;
+  function submit() {
+    if (sending) return;
+    var form = collect();
+
+    if (!form.EmpNo) { alert('請先填員工編號。'); el('empNo').focus(); return; }
+    if (form.Scope === '僅第一層' && !form.ReasonCode) {
+      alert('選了「僅第一層」就要選原因代號。'); el('reasonCode').focus(); return;
+    }
+
+    var res = lastResult || CCRules.evaluatePeriodic(form, ctx, rulesDoc);
+    var warn = res.hasAbnormal
+      ? '這張表有 ' + res.findings.length + ' 項異常，送出後會通知主管。確定送出嗎？'
+      : '確定送出嗎？送出後不能修改。';
+    if (!confirm(warn)) return;
+
+    sending = true;
+    el('btnSubmit').disabled = true;
+    el('btnSubmit').textContent = '送出中…';
+
+    // 後端會用同一份 rules.json 重算，這份只當對照，不當依據。
+    form.clientFindings = res.findings;
+    form.clientRulesVersion = rulesDoc.version;
+    form.token = token;
+
+    CCApi.submitPeriodic(form, demo).then(function (r) {
+      if (!r || r.ok === false) throw new Error((r && r.error) || '送出失敗');
+      document.body.innerHTML =
+        '<div class="wrap"><div class="notice ok" style="margin-top:40px">' +
+        '<h2>送出成功</h2><p>單號：' + (r.recordId || '(無)') + '</p>' +
+        (res.hasAbnormal ? '<p>已通知主管。</p>' : '<p>沒有異常，等主管確認即可。</p>') +
+        (r.demo ? '<p><b>示範模式，資料沒有真的存起來。</b></p>' : '') +
+        '</div></div>';
+    }).catch(function (e) {
+      sending = false;
+      el('btnSubmit').disabled = false;
+      el('btnSubmit').textContent = '送出';
+      alert('送出失敗：' + e.message + '。請再試一次，或改用紙本並告知主管。');
+    });
+  }
+
+  /* ---------- 啟動 ---------- */
+  if (!demo && (!cartCode || !token)) {
+    fail('網址不完整。請重新掃描急救車上的 QR code。');
+    return;
+  }
+
+  CCApi.boot()
+    .then(function (b) {
+      rulesDoc = b.rules;
+      return CCApi.getCartContext(cartCode, token, demo);
+    })
+    .then(function (c) {
+      if (!c || c.ok === false) throw new Error((c && c.error) || 'QR code 無效');
+      ctx = c;
+
+      el('sub').textContent = ctx.cart.CartCode + '｜' + (ctx.unit ? ctx.unit.UnitName : ctx.cart.UnitCode);
+      if (demo) msg.innerHTML = '<div class="notice warn">示範模式：資料是假的，送出不會存進 SharePoint。</div>';
+
+      el('checkDate').value = CCRules.todayIso();
+      el('outerSeal').value = ctx.cart.OuterSealNumber || '';
+      el('ambu').value = ctx.cart.AmbuExpiryOn || '';
+      el('ambuMask').value = ctx.cart.AmbuMaskExpiryOn || '';
+      el('laryngoDate').value = ctx.cart.LaryngoBatteryOn || '';
+      el('laryngoCount').value = ctx.cart.LaryngoUseCount || 0;
+
+      buildTraySlots();
+      el('tray1Seal').value = ctx.cart.Tray1SealNumber || '';
+      el('tray2Seal').value = ctx.cart.Tray2SealNumber || '';
+      buildSections();
+
+      el('form').hidden = false;
+      el('footbar').hidden = false;
+
+      el('empNo').addEventListener('input', onEmpInput);
+      ['scope', 'reasonCode', 'outerSeal', 'ambu', 'ambuMask', 'checkDate', 'shift']
+        .forEach(function (id) { el(id).addEventListener('change', recompute); });
+      // 這幾個用打字的，等 change（離開欄位）才判會太慢，改成邊打邊判。
+      ['laryngoCount', 'outerSeal'].forEach(function (id) {
+        el(id).addEventListener('input', recompute);
+      });
+      el('btnSubmit').addEventListener('click', submit);
+      setupScan();
+
+      recompute();
+    })
+    .catch(function (e) {
+      fail('打不開這張表：' + e.message + '。請找單位主管處理。');
+    });
+})();
+</script>
+</body>
+</html>
