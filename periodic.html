@@ -382,7 +382,7 @@
     host.innerHTML = res.findings.map(function (f) {
       var cls = (f.severity === '高') ? 'bad' : 'warn';
       return '<div class="notice ' + cls + '"><span class="pill ' + cls + '">' + f.severity + '</span> ' +
-        f.code + ' ' + f.name + '　' + (f.target ? '<b>' + f.target + '</b>　' : '') +
+        f.code + ' ' + f.name + '　' + (f.label || f.target ? '<b>' + (f.label || f.target) + '</b>　' : '') +
         f.message + (f.detail ? '（' + f.detail + '）' : '') + '</div>';
     }).join('');
   }

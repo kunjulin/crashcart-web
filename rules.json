@@ -1,5 +1,5 @@
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "updatedOn": "2026-09-19",
   "note": "異常判定的單一真實來源。前端紅字與 Flow-2 後端重算都讀這一份。改這裡兩邊一起變。",
   "answerValues": {
@@ -311,5 +311,24 @@
         "type": "schedule"
       }
     }
-  ]
+  ],
+  "fieldLabels": {
+    "EmpNo": "點班者員工編號",
+    "KeeperEmpNo": "保管者員工編號",
+    "ReasonCode": "不需全車點班原因",
+    "OuterSealNumber": "外側封簽鎖號碼",
+    "Tray1SealNumber": "第一盤封簽鎖號碼",
+    "Tray2SealNumber": "第二盤封簽鎖號碼",
+    "Tray1SealIntact": "第一盤封簽鎖外觀",
+    "Tray2SealIntact": "第二盤封簽鎖外觀",
+    "Tray1DrugOk": "第一盤藥物完整",
+    "Tray2DrugOk": "第二盤藥物完整",
+    "SealIntact": "封簽鎖外觀完整",
+    "BoardOk": "急救板",
+    "SprayOk": "酒精噴槍於效期內",
+    "AmbuExpiryOn": "送消 Ambu 到期日",
+    "AmbuMaskExpiryOn": "送消 Ambu Mask 到期日",
+    "LaryngoUseCount": "喉頭鏡柄累計使用次數",
+    "RemainQty": "備用封簽鎖餘量"
+  }
 }

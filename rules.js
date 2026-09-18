@@ -57,6 +57,7 @@
     function add(code, target, extra) {
       var r = rules[code];
       if (!r) return;
+      var labels = rulesDoc.fieldLabels || {};
       findings.push({
         code: r.code,
         name: r.name,
@@ -65,6 +66,8 @@
         message: r.message,
         requiresApproval: !!r.requiresApproval,
         target: target || '',
+        // 主管看到的是這個。target 保留欄位代號，畫紅字時要靠它對位置。
+        label: labels[target] || target || '',
         detail: extra || ''
       });
     }
@@ -153,10 +156,11 @@
     function add(code, target, extra) {
       var r = rules[code];
       if (!r) return;
+      var labels = rulesDoc.fieldLabels || {};
       findings.push({
         code: r.code, name: r.name, severity: r.severity, dimension: r.dimension,
         message: r.message, requiresApproval: !!r.requiresApproval,
-        target: target || '', detail: extra || ''
+        target: target || '', label: labels[target] || target || '', detail: extra || ''
       });
     }
 
@@ -193,10 +197,11 @@
     function add(code, target, extra) {
       var r = rules[code];
       if (!r) return;
+      var labels = rulesDoc.fieldLabels || {};
       findings.push({
         code: r.code, name: r.name, severity: r.severity, dimension: r.dimension,
         message: r.message, requiresApproval: !!r.requiresApproval,
-        target: target || '', detail: extra || ''
+        target: target || '', label: labels[target] || target || '', detail: extra || ''
       });
     }
 
