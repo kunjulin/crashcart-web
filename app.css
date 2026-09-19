@@ -52,6 +52,10 @@ label { display: block; font-weight: 600; margin: 12px 0 4px; }
 
 input, select, textarea {
   width: 100%;
+  /* iOS 的日期欄位有自己的最小寬度，不設 min-width 會撐破格子跑到隔壁欄。 */
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   min-height: var(--tap);
   padding: 8px 10px;
   border: 1px solid var(--line);
@@ -75,6 +79,9 @@ input[readonly] { background: #eef1f4; color: var(--muted); }
   gap: 10px;
 }
 .row > * { min-width: 0; }
+/* 有的標籤一行放不下（例如「送消 Ambu Mask 到期日」），
+   換行後欄位就會比隔壁低一截。給標籤固定高度，兩欄才會對齊。 */
+.row > div > label { min-height: 3.1em; margin-top: 0; }
 
 /* 每一列都是「標籤 ＋ 作答」兩欄。
    作答欄寬度由 JS 依選項數量固定，所有列才會對齊成表格。 */
@@ -93,7 +100,9 @@ input[readonly] { background: #eef1f4; color: var(--muted); }
 .seg { display: grid; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .seg button {
   width: 100%; min-height: 48px;
-  border: 0; background: #fff; font: inherit; font-size: 1.05rem; cursor: pointer;
+  border: 0; background: #fff; font: inherit; cursor: pointer;
+  /* ˇ 這個字在手機上畫得很小，改用 ✓ 並放大，跟 X 看起來才一樣重。 */
+  font-size: 1.35rem; font-weight: 600; line-height: 1;
   border-right: 1px solid var(--line);
 }
 .seg button:last-child { border-right: 0; }

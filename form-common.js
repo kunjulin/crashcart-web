@@ -22,6 +22,10 @@
 
   /* ---------------- ˇ / X / - 按鈕 ---------------- */
 
+  // 畫面上顯示的符號跟存進去的值要分開。
+  // ˇ 在手機上畫得很小，顯示用 ✓；但送出的值必須是 ˇ，才對得上 SharePoint 的選項。
+  var GLYPH = { 'ˇ': '✓', 'X': '✗', '-': '—' };
+
   function makeSeg(values, onChange) {
     var seg = document.createElement('span');
     seg.className = 'seg';
@@ -35,7 +39,7 @@
       var b = document.createElement('button');
       b.type = 'button';
       b.dataset.v = v;
-      b.textContent = v;
+      b.textContent = GLYPH[v] || v;
       b.setAttribute('aria-pressed', String(v === seg.dataset.value));
       b.addEventListener('click', function () {
         if (seg.dataset.disabled === '1') return;

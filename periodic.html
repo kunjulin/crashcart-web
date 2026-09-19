@@ -75,7 +75,7 @@
     <div id="itemsWrap">
       <div class="card">
         <h2>品項點檢</h2>
-        <div class="hint">ˇ 正常、X 異常。有 X 的品項請補說明。</div>
+        <div class="hint">預設都是 ✓ 正常。只要把有問題的改成 ✗，並補上說明。</div>
       </div>
       <div id="sections"></div>
     </div>
@@ -136,6 +136,10 @@
   }
 
   /* ---------- ˇ / X 三選一按鈕 ---------- */
+  // 畫面上顯示的符號跟存進去的值要分開。
+  // ˇ 在手機上畫得很小，顯示用 ✓；但送出的值必須是 ˇ，才對得上 SharePoint 的選項。
+  var GLYPH = { 'ˇ': '✓', 'X': '✗', '-': '—' };
+
   function makeSeg(name, allowNa, onChange) {
     var seg = document.createElement('span');
     seg.className = 'seg';
@@ -151,7 +155,7 @@
       var b = document.createElement('button');
       b.type = 'button';
       b.dataset.v = v;
-      b.textContent = v;
+      b.textContent = GLYPH[v] || v;
       b.setAttribute('aria-pressed', String(v === seg.dataset.value));
       b.addEventListener('click', function () {
         if (seg.dataset.disabled === '1') return;
