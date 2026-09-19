@@ -76,6 +76,19 @@ input[type="date"], input[type="time"] {
   appearance: none;
   text-align: left;
 }
+/* 光是拿掉外觀還不夠：iOS 把日期文字包在一層自己的元素裡，
+   那一層有 UA 給的最小寬度，會把整個欄位撐開。要一起壓成 0。 */
+input[type="date"]::-webkit-date-and-time-value,
+input[type="time"]::-webkit-date-and-time-value {
+  text-align: left;
+  min-width: 0;
+  margin: 0;
+}
+input[type="date"]::-webkit-datetime-edit,
+input[type="time"]::-webkit-datetime-edit {
+  padding: 0;
+  min-width: 0;
+}
 
 /* 紅字：擋不住送出，只是提醒。 */
 .err { color: var(--bad); font-size: .88rem; margin-top: 4px; font-weight: 600; }
