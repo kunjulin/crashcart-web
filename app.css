@@ -83,6 +83,12 @@ input[readonly] { background: #eef1f4; color: var(--muted); }
    換行後欄位就會比隔壁低一截。給標籤固定高度，兩欄才會對齊。 */
 .row > div > label { min-height: 3.1em; margin-top: 0; }
 
+/* iOS 的 input[type=date] 不會縮到比它顯示的文字還窄，
+   min-width:0 也壓不住。跟別的欄位並排一定會擠出去，
+   所以含日期的列直接一欄到底，最保險。 */
+.row.stack { grid-template-columns: 1fr; }
+.row.stack > div > label { min-height: 0; }
+
 /* 每一列都是「標籤 ＋ 作答」兩欄。
    作答欄寬度由 JS 依選項數量固定，所有列才會對齊成表格。 */
 .qrow {

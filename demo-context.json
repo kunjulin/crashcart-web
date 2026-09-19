@@ -9,17 +9,19 @@
     "OuterSealNumber": "S01001",
     "Tray1SealNumber": "T10101",
     "Tray2SealNumber": "T20101",
-    "NextTrayChangeOn": "2026-10-18",
-    "AmbuExpiryOn": "2027-03-17",
-    "AmbuMaskExpiryOn": "2027-03-17",
-    "LaryngoBatteryOn": "2026-08-29",
+    "NextTrayChangeOn": "2026-10-19",
+    "AmbuExpiryOn": "2027-03-18",
+    "AmbuMaskExpiryOn": "2027-03-18",
+    "LaryngoBatteryOn": "2026-08-30",
     "LaryngoUseCount": 0,
     "InUse": false
   },
   "unit": {
     "UnitCode": "8A",
     "UnitName": "小兒加護病房 8A",
-    "ShiftMode": "三班制 (D/E/N)"
+    "ShiftMode": "三班制 (D/E/N)",
+    "SealStockTotal": 5,
+    "SealStockRemain": 5
   },
   "settings": {
     "ReminderHours": "8",

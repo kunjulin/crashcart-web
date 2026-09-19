@@ -55,7 +55,8 @@ const ctx = {
     LaryngoUseCount: 0,
     InUse: false,
   },
-  unit: { UnitCode: '8A', UnitName: '小兒加護病房 8A', ShiftMode: '三班制 (D/E/N)' },
+  // 這兩個欄位跟 Flow-1 回傳的一致，否則示範模式算不出封簽鎖餘量。
+  unit: { UnitCode: '8A', UnitName: '小兒加護病房 8A', ShiftMode: '三班制 (D/E/N)', SealStockTotal: 5, SealStockRemain: 5 },
   settings,
   items,
   recentSealNumbers: [],

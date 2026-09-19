@@ -32,7 +32,7 @@
 
     <div class="card">
       <h2>基本資料</h2>
-      <div class="row">
+      <div class="row stack">
         <div><label for="checkDate">點班日期</label><input type="date" id="checkDate"></div>
         <div><label for="shift">班別</label>
           <select id="shift">
@@ -82,12 +82,12 @@
 
     <div class="card">
       <h2>車尾固定欄位</h2>
-      <div class="row">
+      <div class="row stack">
         <div><label for="ambu">送消 Ambu 到期日</label><input type="date" id="ambu"></div>
         <div><label for="ambuMask">送消 Ambu Mask 到期日</label><input type="date" id="ambuMask"></div>
       </div>
       <div class="err" id="ambuErr"></div>
-      <div class="row">
+      <div class="row stack">
         <div><label for="laryngoDate">喉頭鏡柄電池更換日</label><input type="date" id="laryngoDate"></div>
         <div><label for="laryngoCount">喉頭鏡柄累計使用次數</label><input type="number" id="laryngoCount" min="0" step="1"></div>
       </div>
@@ -159,6 +159,7 @@
       b.setAttribute('aria-pressed', String(v === seg.dataset.value));
       b.addEventListener('click', function () {
         if (seg.dataset.disabled === '1') return;
+        segTouched = true;
         seg.dataset.value = (seg.dataset.value === v) ? '' : v;
         Array.prototype.forEach.call(seg.children, function (c) {
           c.setAttribute('aria-pressed', String(c.dataset.v === seg.dataset.value));
@@ -408,6 +409,9 @@
   }
 
   /* ---------- 員工編號 ---------- */
+  // 預設全是「正常」很省事，但也代表可以完全不看就送出。
+  // 記錄有沒有動過任何一個作答，送出時才擋得住「開了就直接按送出」。
+  var segTouched = false;
   var empSource = '手動輸入';
   var identityInvalid = false;
   var identityReason = '';
@@ -506,6 +510,8 @@
     if (form.Scope === '僅第一層' && !form.ReasonCode) {
       alert('選了「僅第一層」就要選原因代號。'); el('reasonCode').focus(); return;
     }
+
+    if (!segTouched && !confirm('這張表的所有項目都還停在預設的「正常」，你沒有動過任何一個。確定每一項都真的檢查過了嗎？')) return;
 
     var res = lastResult || CCRules.evaluatePeriodic(form, ctx, rulesDoc);
     var warn = res.hasAbnormal

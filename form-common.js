@@ -17,7 +17,10 @@
     empSource: '手動輸入',
     identityInvalid: false,
     identityReason: '',
-    sending: false
+    sending: false,
+    // 預設全是「正常」很省事，但也代表可以完全不看就送出。
+    // 記錄有沒有動過任何一個作答，送出時才擋得住「開了就直接按送出」。
+    segTouched: false
   };
 
   /* ---------------- ˇ / X / - 按鈕 ---------------- */
@@ -43,6 +46,7 @@
       b.setAttribute('aria-pressed', String(v === seg.dataset.value));
       b.addEventListener('click', function () {
         if (seg.dataset.disabled === '1') return;
+        state.segTouched = true;
         seg.dataset.value = (seg.dataset.value === v) ? '' : v;
         Array.prototype.forEach.call(seg.children, function (c) {
           c.setAttribute('aria-pressed', String(c.dataset.v === seg.dataset.value));
@@ -267,6 +271,7 @@
 
   function submit(o) {
     if (state.sending) return;
+    if (!state.segTouched && !confirm('這張表的所有項目都還停在預設的「正常」，你沒有動過任何一個。確定每一項都真的檢查過了嗎？')) return;
     var warn = o.result.hasAbnormal
       ? '這張表有 ' + o.result.findings.length + ' 項異常，送出後會通知主管。確定送出嗎？'
       : '確定送出嗎？送出後不能修改。';
@@ -316,6 +321,7 @@
     boot: boot,
     submit: submit,
     empSource: function () { return state.empSource; },
+    segTouched: function () { return state.segTouched; },
     identityInvalid: function () { return state.identityInvalid; },
     identityReason: function () { return state.identityReason; }
   };
