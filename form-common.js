@@ -25,13 +25,18 @@
   function makeSeg(values, onChange) {
     var seg = document.createElement('span');
     seg.className = 'seg';
-    seg.dataset.value = '';
+    // 每一格等寬，寬度依選項數量固定，所有列才會對齊成表格。
+    seg.style.gridTemplateColumns = 'repeat(' + values.length + ', 1fr)';
+    seg.style.width = (68 * values.length) + 'px';
+    // 預設就選「正常」。護理師大多數項目都是正常，只要點異常的那幾個就好，
+    // 一張附件九可以少點一百多次。
+    seg.dataset.value = values[0];
     values.forEach(function (v) {
       var b = document.createElement('button');
       b.type = 'button';
       b.dataset.v = v;
       b.textContent = v;
-      b.setAttribute('aria-pressed', 'false');
+      b.setAttribute('aria-pressed', String(v === seg.dataset.value));
       b.addEventListener('click', function () {
         if (seg.dataset.disabled === '1') return;
         seg.dataset.value = (seg.dataset.value === v) ? '' : v;

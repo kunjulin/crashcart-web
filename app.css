@@ -67,14 +67,33 @@ input[readonly] { background: #eef1f4; color: var(--muted); }
 .err:empty { display: none; }
 .field-bad input, .field-bad select { border-color: var(--bad); }
 
-.row { display: flex; gap: 8px; flex-wrap: wrap; }
-.row > * { flex: 1 1 140px; }
+/* 用 grid 而不是 flex：flex 的 basis 在窄螢幕會被內容撐開，
+   iOS 的日期欄位特別寬，會把隔壁的欄位擠出去。grid 給固定份數就不會。 */
+.row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+.row > * { min-width: 0; }
 
-/* ˇ / X / - 三選一按鈕 */
-.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+/* 每一列都是「標籤 ＋ 作答」兩欄。
+   作答欄寬度由 JS 依選項數量固定，所有列才會對齊成表格。 */
+.qrow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+}
+.qrow + .qrow { border-top: 1px solid #eef1f4; }
+.qrow .qlabel { font-weight: 600; line-height: 1.35; }
+.qrow .qsub { display: block; font-weight: 400; font-size: .82rem; color: var(--muted); }
+
+/* ˇ / X 做成等寬的格子，每一格一樣大，戴手套也好按 */
+.seg { display: grid; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .seg button {
-  min-width: 46px; min-height: var(--tap);
-  border: 0; background: #fff; font: inherit; cursor: pointer;
+  width: 100%; min-height: 48px;
+  border: 0; background: #fff; font: inherit; font-size: 1.05rem; cursor: pointer;
   border-right: 1px solid var(--line);
 }
 .seg button:last-child { border-right: 0; }
@@ -98,9 +117,7 @@ details.section[data-has-bad="1"] > summary { color: var(--bad); }
 .item { border-top: 1px solid var(--line); padding: 12px 14px; }
 .item .name { font-weight: 700; }
 .item .spec { color: var(--muted); font-size: .85rem; }
-.item .dims { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 8px; }
-.item .dim { display: flex; align-items: center; gap: 6px; }
-.item .dim > span { font-size: .85rem; color: var(--muted); min-width: 4em; }
+.item .dims { margin-top: 6px; }
 .item .extra { margin-top: 8px; display: none; }
 .item[data-need-extra="1"] .extra { display: block; }
 

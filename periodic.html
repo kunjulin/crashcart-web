@@ -140,16 +140,21 @@
     var seg = document.createElement('span');
     seg.className = 'seg';
     seg.dataset.name = name;
-    seg.dataset.value = '';
     var vals = [A.ok, A.bad];
     if (allowNa) vals.push(A.na);
+    // 每一格等寬，寬度依選項數量固定，所有列才會對齊成表格。
+    seg.style.gridTemplateColumns = 'repeat(' + vals.length + ', 1fr)';
+    seg.style.width = (68 * vals.length) + 'px';
+    // 預設就選「正常」，護理師只要點異常的那幾個。
+    seg.dataset.value = vals[0];
     vals.forEach(function (v) {
       var b = document.createElement('button');
       b.type = 'button';
       b.dataset.v = v;
       b.textContent = v;
-      b.setAttribute('aria-pressed', 'false');
+      b.setAttribute('aria-pressed', String(v === seg.dataset.value));
       b.addEventListener('click', function () {
+        if (seg.dataset.disabled === '1') return;
         seg.dataset.value = (seg.dataset.value === v) ? '' : v;
         Array.prototype.forEach.call(seg.children, function (c) {
           c.setAttribute('aria-pressed', String(c.dataset.v === seg.dataset.value));
@@ -160,6 +165,7 @@
     });
     return seg;
   }
+
   function segValue(seg) { return seg ? seg.dataset.value : ''; }
 
   /* ---------- 兩盤封簽鎖 ---------- */
@@ -176,11 +182,9 @@
 
       [['SealIntact', '封簽鎖外觀完整'], ['DrugOk', '藥物無破損']].forEach(function (pair) {
         var wrap = document.createElement('div');
-        wrap.className = 'dim';
-        wrap.style.padding = '8px 0';
+        wrap.className = 'qrow';
         var lbl = document.createElement('span');
-        lbl.style.minWidth = '9em';
-        lbl.style.fontWeight = '600';
+        lbl.className = 'qlabel';
         lbl.textContent = pair[1];
         var seg = makeSeg('Tray' + n + pair[0], false, recompute);
         traySegs['Tray' + n + pair[0]] = seg;
@@ -233,9 +237,10 @@
         var segs = {};
         DIMS.forEach(function (dm) {
           if (!it[dm.flag]) return;
-          var w = document.createElement('span');
-          w.className = 'dim';
+          var w = document.createElement('div');
+          w.className = 'qrow';
           var t = document.createElement('span');
+          t.className = 'qlabel';
           t.textContent = dm.key;
           var seg = makeSeg(it.name + '|' + dm.key, false, recompute);
           segs[dm.key] = seg;
