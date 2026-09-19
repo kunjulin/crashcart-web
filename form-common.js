@@ -148,8 +148,13 @@
       if (!v) { onChange(); return; }
       timer = setTimeout(function () {
         CCApi.lookupEmployee(cartCode, token, v, demo).then(function (r) {
+          // 打字很快時會同時有好幾個查詢在路上，舊的可能比新的晚回來。
+          // 回來時先確認欄位裡還是當初那個員編，不是就整個丟掉。
+          if (el(empNoId).value.trim().toUpperCase() !== v) return;
           if (r && r.valid) {
             el(empNameId).value = r.empName || '';
+            state.identityInvalid = false;
+            state.identityReason = '';
           } else {
             state.identityInvalid = true;
             state.identityReason = (r && r.reason) || '查無此員工編號';
