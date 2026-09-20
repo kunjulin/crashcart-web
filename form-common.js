@@ -185,7 +185,7 @@
     }
     btn.addEventListener('click', function () {
       CCScan.open({
-        title: '把員工證上的條碼對準框內',
+        title: '把員工證上的條碼填滿白框',
         validate: CCScan.employeeBadge,
         onResult: function (text) {
           el(empNoId).value = text;

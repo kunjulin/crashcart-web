@@ -27,6 +27,18 @@
   // 大約每 150ms 掃一次，對準條碼後不到一秒就會中。
   var DETECT_INTERVAL_MS = 150;
 
+  // iPhone 預設只給 640×480。員工證上那種細條碼在這個解析度下線會糊在一起，
+  // 怎麼對都解不出來，所以一定要指定高解析度。
+  var IDEAL_WIDTH = 1920;
+  var IDEAL_HEIGHT = 1080;
+
+  // 串流開起來之後還會再往上拉到相機支援的最高，但不超過這個，免得手機跑不動。
+  var MAX_WIDTH = 2560;
+  var MAX_HEIGHT = 1440;
+
+  // 幾秒之後還沒掃到，就給一句怎麼拿比較好掃的提示。
+  var HINT_AFTER_MS = 6000;
+
   // 員工編號不會超過這個長度。掃到更長的多半是急救車那張 QR code。
   var EMP_MAX_LEN = 20;
 
@@ -168,17 +180,94 @@
       'bottom:calc(env(safe-area-inset-bottom, 0px) + 24px);' +
       'min-width:160px;min-height:52px;font-size:1.1rem';
 
+    // 只有網址帶 ?scandebug=1 才會出現，用來回報實際的相機解析度。
+    var debug = document.createElement('div');
+    debug.style.cssText =
+      'position:absolute;left:8px;top:calc(env(safe-area-inset-top, 0px) + 52px);' +
+      'color:#0f0;font:12px/1.4 monospace;text-align:left;white-space:pre;' +
+      'text-shadow:0 1px 2px #000';
+
     root.appendChild(video);
     root.appendChild(frame);
     root.appendChild(tip);
     root.appendChild(status);
+    root.appendChild(debug);
     root.appendChild(cancel);
     document.body.appendChild(root);
 
-    return { root: root, video: video, status: status, cancel: cancel };
+    return { root: root, video: video, frame: frame, status: status, debug: debug, cancel: cancel };
   }
 
+  /**
+   * 把畫面上那個白框，換算成影像裡對應的那一塊。
+   *
+   * 影片是用 object-fit:cover 鋪滿的，所以左右或上下會被裁掉，
+   * 不能直接拿螢幕座標當影像座標。
+   *
+   * 只解白框那一塊有兩個好處：畫面上其他東西不會來亂，
+   * 而且送進解碼器的是原始畫素，不會被整張縮圖糊掉。
+   */
+  function cropToFrame(video, frameEl) {
+    var vw = video.videoWidth, vh = video.videoHeight;
+    if (!vw || !vh) return null;
+
+    var box = frameEl.getBoundingClientRect();
+    var dw = video.clientWidth || window.innerWidth;
+    var dh = video.clientHeight || window.innerHeight;
+    var s = Math.max(dw / vw, dh / vh);          // cover 的縮放倍率
+    var offX = (dw - vw * s) / 2;
+    var offY = (dh - vh * s) / 2;
+
+    var sx = (box.left - offX) / s;
+    var sy = (box.top - offY) / s;
+    var sw = box.width / s;
+    var sh = box.height / s;
+
+    // 條碼常常會超出框一點點，左右各多留一些比較保險。
+    var padX = sw * 0.08, padY = sh * 0.15;
+    sx -= padX; sw += padX * 2;
+    sy -= padY; sh += padY * 2;
+
+    sx = Math.max(0, Math.min(sx, vw));
+    sy = Math.max(0, Math.min(sy, vh));
+    sw = Math.max(1, Math.min(sw, vw - sx));
+    sh = Math.max(1, Math.min(sh, vh - sy));
+
+    var c = cropCanvas || (cropCanvas = document.createElement('canvas'));
+    c.width = Math.round(sw);
+    c.height = Math.round(sh);
+    c.getContext('2d').drawImage(video, sx, sy, sw, sh, 0, 0, c.width, c.height);
+    return c;
+  }
+
+  var cropCanvas = null;
+
   /* ---------------- 主入口 ---------------- */
+
+  /**
+   * 開好串流之後，再把解析度往上拉到相機支援的最高（設一個上限免得太吃效能）。
+   *
+   * 為什麼要這樣做：直式手機配橫式影像，object-fit:cover 會把左右裁掉一大半，
+   * 白框對應到的原始畫素其實不多。員工證上的條碼線很細，畫素不夠就解不出來。
+   * 拉高解析度是唯一能補的地方。
+   *
+   * 失敗沒關係，就用原本的解析度繼續掃。
+   */
+  function raiseResolution(stream) {
+    try {
+      var track = stream.getVideoTracks()[0];
+      if (!track || !track.getCapabilities || !track.applyConstraints) return;
+      var caps = track.getCapabilities();
+      if (!caps || !caps.width || !caps.width.max) return;
+      var now = track.getSettings ? (track.getSettings().width || 0) : 0;
+      if (now >= MAX_WIDTH) return;
+      track.applyConstraints({
+        width: Math.min(caps.width.max, MAX_WIDTH),
+        height: caps.height && caps.height.max
+          ? Math.min(caps.height.max, MAX_HEIGHT) : undefined
+      }).catch(function () {});
+    } catch (e) { /* 拉不動就算了 */ }
+  }
 
   /** 這台裝置到底能不能掃。只有連相機都拿不到才算不能。 */
   function supported() {
@@ -212,12 +301,18 @@
     var ui = buildOverlay(opts.title);
     var stream = null;
     var timer = null;
+    var hintTimer = null;
     var closed = false;
+    var tick = 0;
+    var attempts = 0;
+    // 網址帶 ?scandebug=1 就把相機解析度顯示在畫面上，方便回報掃不到的狀況。
+    var showDebug = /[?&]scandebug=1/.test(location.search);
 
     function cleanup() {
       if (closed) return;
       closed = true;
       clearTimeout(timer);
+      clearTimeout(hintTimer);
       // 沒停掉的話相機燈會一直亮著，而且下次開不起來。
       if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
       ui.video.srcObject = null;
@@ -237,11 +332,26 @@
     ui.status.textContent = '正在開啟相機…';
 
     navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' } },
+      video: {
+        facingMode: { ideal: 'environment' },
+        // 不要求高解析度的話 iPhone 只給 640×480，細條碼會糊成一團。
+        width: { ideal: IDEAL_WIDTH },
+        height: { ideal: IDEAL_HEIGHT },
+        advanced: [{ focusMode: 'continuous' }]
+      },
       audio: false
+    }).catch(function (e) {
+      // 有些舊裝置給不出這個解析度，退回最低要求再試一次，不要直接放棄。
+      if (e && (e.name === 'OverconstrainedError' || e.name === 'ConstraintNotSatisfiedError')) {
+        return navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } }, audio: false
+        });
+      }
+      throw e;
     }).then(function (s) {
       if (closed) { s.getTracks().forEach(function (t) { t.stop(); }); throw new Error('已取消'); }
       stream = s;
+      raiseResolution(s);
       ui.video.srcObject = s;
       // iOS 有時候會擋自動播放，play() 被拒絕不代表壞掉，畫面通常還是會動。
       return Promise.resolve(ui.video.play()).catch(function () {});
@@ -263,6 +373,23 @@
     }).then(function (detector) {
       if (closed || !detector) return;
       ui.status.textContent = '';
+      if (showDebug) {
+        var t = stream && stream.getVideoTracks()[0];
+        var st = t && t.getSettings ? t.getSettings() : {};
+        ui.debug.textContent =
+          '相機 ' + (st.width || '?') + '×' + (st.height || '?') + '\n' +
+          '影像 ' + ui.video.videoWidth + '×' + ui.video.videoHeight;
+      }
+      // 一開始就講怎麼拿。條碼佔的畫素越多越好解，這句話比什麼都有效。
+      var FIRST_HINT = '條碼要填滿白框，離 15～20 公分。';
+      ui.status.textContent = FIRST_HINT;
+      hintTimer = setTimeout(function () {
+        // 只在還是第一句提示時才換，免得蓋掉「這不是員工證條碼」那種訊息。
+        if (!closed && ui.status.textContent === FIRST_HINT) {
+          ui.status.textContent = '還是對不到？卡片放平不要斜，光線要夠亮，' +
+            '先拉遠再慢慢靠近讓鏡頭對焦。';
+        }
+      }, HINT_AFTER_MS);
       scanLoop(detector);
     }).catch(function (e) {
       if (closed) return;
@@ -274,8 +401,21 @@
 
     function scanLoop(detector) {
       if (closed) return;
-      detector.detect(ui.video).then(function (codes) {
+      tick++;
+      // 大多數時候只解白框那一塊，畫素最細、雜訊最少。
+      // 每四次穿插一次整張畫面，萬一條碼沒完全對進框裡也接得住。
+      var source = null;
+      if (tick % 4 !== 0) source = cropToFrame(ui.video, ui.frame);
+      if (!source) source = ui.video;
+      if (showDebug) attempts++;
+
+      detector.detect(source).then(function (codes) {
         if (closed) return;
+        if (showDebug) {
+          ui.debug.textContent = ui.debug.textContent.split('\n').slice(0, 2).join('\n') +
+            '\n解碼 ' + attempts + ' 次　裁切 ' +
+            (source === ui.video ? '整張' : source.width + '×' + source.height);
+        }
         if (codes && codes.length) {
           var text = String(codes[0].rawValue || '').trim().toUpperCase();
           if (text) {
