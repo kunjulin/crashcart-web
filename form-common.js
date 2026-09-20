@@ -171,58 +171,30 @@
 
   /* ---------------- 掃員工證條碼 ---------------- */
 
+  // 真正的掃碼在 scanner.js（CCScan）。這裡只負責接線。
   function wireScan(btnId, empNoId, onChange) {
     var btn = el(btnId);
     if (!btn) return;
-    if (!('BarcodeDetector' in window)) {
+    // 只有連相機都拿不到才變灰。沒有原生 BarcodeDetector 不算不支援，
+    // CCScan 會自己載後備解碼器。
+    if (!CCScan.supported()) {
       btn.textContent = '不支援';
       btn.disabled = true;
-      btn.title = '這台裝置的瀏覽器不支援掃碼，請直接打字。';
+      btn.title = '這台裝置不能用相機掃碼，請直接打字。';
       return;
     }
     btn.addEventListener('click', function () {
-      var video = document.createElement('video');
-      video.setAttribute('playsinline', '');
-      video.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:100;background:#000';
-      var close = document.createElement('button');
-      close.type = 'button';
-      close.textContent = '取消';
-      close.className = 'primary';
-      close.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:101';
-      document.body.appendChild(video);
-      document.body.appendChild(close);
-
-      var stream = null, stop = false;
-      function cleanup() {
-        stop = true;
-        if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
-        video.remove();
-        close.remove();
-      }
-      close.addEventListener('click', cleanup);
-
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-        .then(function (s) { stream = s; video.srcObject = s; return video.play(); })
-        .then(function () {
-          var det = new window.BarcodeDetector();
-          (function loop() {
-            if (stop) return;
-            det.detect(video).then(function (codes) {
-              if (codes && codes.length) {
-                el(empNoId).value = String(codes[0].rawValue).trim().toUpperCase();
-                state.empSource = '掃描';
-                cleanup();
-                el(empNoId).dispatchEvent(new Event('input'));
-                return;
-              }
-              requestAnimationFrame(loop);
-            }).catch(function () { requestAnimationFrame(loop); });
-          })();
-        })
-        .catch(function () {
-          cleanup();
-          alert('打不開相機，請直接打字輸入員工編號。');
-        });
+      CCScan.open({
+        title: '把員工證上的條碼對準框內',
+        validate: CCScan.employeeBadge,
+        onResult: function (text) {
+          el(empNoId).value = text;
+          state.empSource = '掃描';
+          // 走跟打字一樣的路，查員編那段不用再寫一次。
+          el(empNoId).dispatchEvent(new Event('input'));
+        },
+        onError: function (msg) { alert(msg); }
+      });
     });
   }
 

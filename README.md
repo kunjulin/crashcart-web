@@ -12,6 +12,8 @@
 | `periodic.html` | **附件九・定期點班**。38 個品項 × 4 個面向。 |
 | `rules.json` | **16 條異常規則**。前端紅字和後端 Flow-2 讀同一份。 |
 | `rules.js` | 判定引擎。只負責「怎麼算」，門檻值都從 `rules.json` 來。 |
+| `scanner.js` | **掃條碼共用入口**（`CCScan.open`）。三張表都用它。 |
+| `vendor/` | 掃條碼的後備解碼器。**不要手改**，是從 npm 複製進來的。 |
 | `api.js` | 跟 Power Automate 說話的那一層。 |
 | `config.json` | Flow-1 / Flow-2 的網址。 |
 | `demo-context.json` | 示範資料，讓還沒接流程也能看畫面。 |
@@ -26,6 +28,65 @@ python -m http.server 5180 --directory web
 然後開 <http://localhost:5180/periodic.html?demo=1>。
 
 `?demo=1` 是示範模式：資料是假的，送出不會存進 SharePoint。
+
+## 掃條碼怎麼運作
+
+護理師掃員工證上的一維條碼填員工編號。程式在 `scanner.js`：
+
+```
+按下「掃條碼」
+      ↓
+有原生 BarcodeDetector？（Android Chrome 有）
+  有 → 直接用，最快
+  沒有（iPhone Safari、Windows 桌面 Chrome）
+      ↓
+載入 vendor/ 的後備解碼器（ZXing WebAssembly）
+  ← 按下按鈕才載，不拖慢表單開啟
+  ← 檔案都在自己站台，不連 CDN（醫院網路可能擋外部網址）
+```
+
+`vendor/` 裡的兩個檔案是從 npm 複製進來的，**不要手改**：
+
+| 檔案 | 來源 | 大小 |
+|---|---|---|
+| `barcode-detector.ponyfill.js` | `barcode-detector@3.2.2` 的 `dist/iife/ponyfill.js` | 43 KB |
+| `zxing_reader.wasm` | `zxing-wasm@3.1.3` 的 `dist/reader/zxing_reader.wasm` | 1.04 MB |
+
+要更新版本：
+
+```bash
+npm pack barcode-detector@<版本>
+npm pack zxing-wasm@<版本>
+```
+
+解開後把那兩個檔案蓋過去。兩個版本要配對 —— `barcode-detector` 的
+`dependencies.zxing-wasm` 寫的就是該用哪一版。
+
+### 要改的兩個地方
+
+`scanner.js` 最上面有兩個常數：
+
+- `FORMATS` —— 限定要認哪幾種條碼。**員工證的實際格式還沒確認**，
+  現在開 `code_39`、`code_128`、`codabar`、`ean_13`、`qr_code`。
+  確認之後把用不到的刪掉，辨識會更快也更不容易認錯。
+- `DETECT_INTERVAL_MS` —— 多久掃一次。WebAssembly 解碼比原生慢很多，
+  每個 frame 都跑會讓手機發燙又卡，所以節流到 150ms。
+
+### 別的欄位也想掃？
+
+`CCScan.open()` 是通用的，例如封簽鎖號碼：
+
+```js
+CCScan.open({
+  title: '把封簽鎖上的條碼對準框內',
+  onResult: function (text) { el('sealNumber').value = text; },
+  onError: function (msg) { alert(msg); }
+});
+```
+
+`validate` 可以傳一個函式，回傳一句話代表「這不是我要的東西」，
+畫面不會關掉，會顯示那句話並繼續掃。員工編號用的是 `CCScan.employeeBadge`，
+它擋掉長度超過 20 和含有 `://` 的值 —— 那多半是掃到急救車那張 QR code。
 
 ## 正式網址長什麼樣
 
