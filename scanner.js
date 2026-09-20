@@ -421,6 +421,17 @@
           if (text) {
             var bad = validate(text);
             if (!bad) {
+              // debug 模式停兩秒把格式顯示出來，才知道員工證到底是哪一種條碼，
+              // 好把 FORMATS 縮到只剩那一種。
+              if (showDebug) {
+                ui.debug.textContent += '\n\n掃到了\n格式 ' + codes[0].format +
+                  '\n值　 ' + text + '\n長度 ' + text.length;
+                clearTimeout(hintTimer);
+                ui.status.textContent = '';
+                if (stream) stream.getTracks().forEach(function (t2) { t2.stop(); });
+                setTimeout(function () { cleanup(); onResult(text); }, 2500);
+                return;
+              }
               cleanup();
               onResult(text);
               return;
