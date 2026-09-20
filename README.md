@@ -66,9 +66,10 @@ npm pack zxing-wasm@<版本>
 
 `scanner.js` 最上面有兩個常數：
 
-- `FORMATS` —— 限定要認哪幾種條碼。**員工證的實際格式還沒確認**，
-  現在開 `code_39`、`code_128`、`codabar`、`ean_13`、`qr_code`。
-  確認之後把用不到的刪掉，辨識會更快也更不容易認錯。
+- `FORMATS` —— 限定要認哪幾種條碼。現在是 `code_39` 跟 `qr_code`。
+  **長庚員工證是 code_39，值就是員工編號**（2026-09 實機確認）。
+  `qr_code` 留著是為了認得出「你掃到急救車的 QR code 了」並告訴使用者；
+  不認的話他只會一直掃不到，不知道哪裡錯。代價很小（單張解碼 8.8ms vs 6.0ms）。
 - `DETECT_INTERVAL_MS` —— 多久掃一次。WebAssembly 解碼比原生慢很多，
   每個 frame 都跑會讓手機發燙又卡，所以節流到 150ms。
 
